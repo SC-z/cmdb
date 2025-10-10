@@ -1,0 +1,320 @@
+{% extends 'base.html' %}
+
+{% block title %}服务器详情 - {{ server.sn }} - CMDB{% endblock %}
+
+{% block content %}
+<div class="row mb-3">
+    <div class="col-md-12">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'assets:server_list' %}">服务器列表</a></li>
+                <li class="breadcrumb-item active">{{ server.sn }}</li>
+            </ol>
+        </nav>
+    </div>
+</div>
+
+<div class="row mb-3">
+    <div class="col-md-12">
+        <h2>
+            <i class="bi bi-hdd-rack"></i> 服务器详情
+            {% if server.status == 'online' %}
+                <span class="badge bg-success">在线</span>
+            {% elif server.status == 'offline' %}
+                <span class="badge bg-danger">离线</span>
+            {% else %}
+                <span class="badge bg-secondary">未知</span>
+            {% endif %}
+        </h2>
+    </div>
+</div>
+
+<!-- 基本信息 -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-info-circle"></i> 基本信息</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <table class="table table-bordered">
+                            <tr>
+                                <th width="30%">SN（序列号）</th>
+                                <td><code>{{ server.sn }}</code></td>
+                            </tr>
+                            <tr>
+                                <th>主机名</th>
+                                <td>{{ server.hostname|default:"--" }}</td>
+                            </tr>
+                            <tr>
+                                <th>管理IP</th>
+                                <td>{{ server.management_ip|default:"--" }}</td>
+                            </tr>
+                            <tr>
+                                <th>状态</th>
+                                <td>
+                                    {% if server.status == 'online' %}
+                                        <span class="badge bg-success">在线</span>
+                                    {% elif server.status == 'offline' %}
+                                        <span class="badge bg-danger">离线</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">未知</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <table class="table table-bordered">
+                            <tr>
+                                <th width="30%">Agent状态</th>
+                                <td>
+                                    {% if server.agent_deployed %}
+                                        <span class="badge bg-success"><i class="bi bi-check-circle"></i> 已部署</span>
+                                    {% else %}
+                                        <span class="badge bg-warning"><i class="bi bi-exclamation-circle"></i> 未部署</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Agent版本</th>
+                                <td>{{ server.agent_version|default:"--" }}</td>
+                            </tr>
+                            <tr>
+                                <th>最后上报时间</th>
+                                <td>
+                                    {% if server.last_report_time %}
+                                        {{ server.last_report_time|date:"Y-m-d H:i:s" }}
+                                    {% else %}
+                                        <span class="text-muted">--</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>创建时间</th>
+                                <td>{{ server.created_at|date:"Y-m-d H:i:s" }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 硬件信息 -->
+{% if server.hardware %}
+<!-- CPU信息 -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="bi bi-cpu"></i> CPU信息</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-12">
+                        <table class="table table-bordered">
+                            <tr>
+                                <th width="20%">CPU型号</th>
+                                <td>{{ server.hardware.cpu_info.model|default:"Unknown" }}</td>
+                            </tr>
+                            <tr>
+                                <th>CPU架构</th>
+                                <td>{{ server.hardware.cpu_info.architecture|default:"Unknown" }}</td>
+                            </tr>
+                            <tr>
+                                <th>物理核心数</th>
+                                <td>{{ server.hardware.cpu_info.physical_cores|default:"0" }} 核</td>
+                            </tr>
+                            <tr>
+                                <th>逻辑核心数（含超线程）</th>
+                                <td>{{ server.hardware.cpu_info.logical_cores|default:"0" }} 核</td>
+                            </tr>
+                            <tr>
+                                <th>CPU Socket数量</th>
+                                <td>{{ server.hardware.cpu_info.sockets|default:"0" }} 个</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 内存信息 -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="bi bi-memory"></i> 内存信息</h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info mb-3">
+                    <strong><i class="bi bi-info-circle"></i> 系统总内存：</strong> {{ server.hardware.memory_total_gb|default:"0" }} GB
+                    {% if server.hardware.memory_modules %}
+                        （共 {{ server.hardware.memory_modules|length }} 条内存）
+                    {% endif %}
+                </div>
+
+                {% if server.hardware.memory_modules %}
+                <div class="table-responsive">
+                    <table class="table table-striped table-bordered table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th width="5%">#</th>
+                                <th width="20%">插槽位置</th>
+                                <th width="15%">容量</th>
+                                <th width="15%">频率</th>
+                                <th width="25%">序列号</th>
+                                <th width="20%">厂商</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for module in server.hardware.memory_modules %}
+                            <tr>
+                                <td>{{ forloop.counter }}</td>
+                                <td><code>{{ module.slot }}</code></td>
+                                <td><strong>{{ module.size }}</strong></td>
+                                <td>{{ module.speed }}</td>
+                                <td><small><code>{{ module.sn }}</code></small></td>
+                                <td>{{ module.vendor }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted">暂无内存条详细信息</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 磁盘信息 -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0"><i class="bi bi-hdd"></i> 磁盘信息</h5>
+            </div>
+            <div class="card-body">
+                {% if server.hardware.disks %}
+                <div class="alert alert-info mb-3">
+                    <strong><i class="bi bi-info-circle"></i> 磁盘总数：</strong> {{ server.hardware.disks|length }} 块
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-striped table-bordered table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th width="5%">#</th>
+                                <th width="15%">设备</th>
+                                <th width="15%">类型</th>
+                                <th width="15%">容量</th>
+                                <th width="30%">序列号</th>
+                                <th width="20%">PCIe槽位</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for disk in server.hardware.disks %}
+                            <tr>
+                                <td>{{ forloop.counter }}</td>
+                                <td><code>{{ disk.device }}</code></td>
+                                <td>
+                                    {% if disk.type == 'NVMe' %}
+                                        <span class="badge bg-primary">{{ disk.type }}</span>
+                                    {% elif disk.type == 'SSD' %}
+                                        <span class="badge bg-success">{{ disk.type }}</span>
+                                    {% elif disk.type == 'HDD' %}
+                                        <span class="badge bg-secondary">{{ disk.type }}</span>
+                                    {% else %}
+                                        <span class="badge bg-light text-dark">{{ disk.type }}</span>
+                                    {% endif %}
+                                </td>
+                                <td><strong>{{ disk.size }}</strong></td>
+                                <td><small><code>{{ disk.serial }}</code></small></td>
+                                <td><small>{{ disk.pcie_slot }}</small></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted">暂无磁盘信息</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 原始数据 -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-code-square"></i> 原始数据（JSON）
+                    <button class="btn btn-sm btn-outline-secondary float-end" type="button" data-bs-toggle="collapse" data-bs-target="#rawDataCollapse">
+                        展开/收起
+                    </button>
+                </h5>
+            </div>
+            <div class="collapse" id="rawDataCollapse">
+                <div class="card-body">
+                    <pre class="bg-light p-3 rounded" style="max-height: 400px; overflow-y: auto;"><code>{{ server.hardware.raw_data|safe }}</code></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-12">
+        <small class="text-muted">
+            <i class="bi bi-clock"></i> 硬件信息采集时间: {{ server.hardware.collected_at|date:"Y-m-d H:i:s" }}
+        </small>
+    </div>
+</div>
+
+{% else %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle"></i> 暂无硬件信息，等待Agent上报数据...
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- 操作按钮 -->
+<div class="row">
+    <div class="col-md-12">
+        <a href="{% url 'assets:server_list' %}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> 返回列表
+        </a>
+        <button type="button" class="btn btn-danger" onclick="deleteServer()">
+            <i class="bi bi-trash"></i> 删除服务器
+        </button>
+    </div>
+</div>
+
+<!-- 删除确认表单 -->
+<form id="deleteForm" method="post" action="{% url 'assets:delete_server' server.id %}" style="display:none;">
+    {% csrf_token %}
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function deleteServer() {
+    if (confirm('确定要删除服务器 {{ server.sn }} 吗？\n删除后数据将无法恢复！')) {
+        document.getElementById('deleteForm').submit();
+    }
+}
+</script>
+{% endblock %}

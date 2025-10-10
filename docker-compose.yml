@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  cmdb:
+    build: .
+    container_name: cmdb_app
+    ports:
+      - "8000:8000"
+    environment:
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY:-your-secret-key-change-in-production}
+      - DJANGO_DEBUG=${DJANGO_DEBUG:-False}
+      - DJANGO_ALLOWED_HOSTS=${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1}
+      - DJANGO_SUPERUSER_USERNAME=${DJANGO_SUPERUSER_USERNAME:-admin}
+      - DJANGO_SUPERUSER_PASSWORD=${DJANGO_SUPERUSER_PASSWORD:-admin123}
+      - DJANGO_SUPERUSER_EMAIL=${DJANGO_SUPERUSER_EMAIL:-admin@example.com}
+    volumes:
+      # 数据库持久化
+      - ./data:/app/data
+      # 日志持久化
+      - ./logs:/app/logs
+      # 如果需要在开发模式下实时更新代码，取消下面的注释
+      # - .:/app
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+# 持久化卷
+volumes:
+  db_data:
+  logs:

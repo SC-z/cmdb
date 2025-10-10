@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+
+{% block title %}添加服务器 - CMDB{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <div class="card">
+            <div class="card-header">
+                <h4><i class="bi bi-plus-circle"></i> 添加服务器</h4>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+
+                    <div class="mb-3">
+                        <label for="management_ip" class="form-label">
+                            管理IP <span class="text-danger">*</span>
+                        </label>
+                        <input type="text" class="form-control" id="management_ip"
+                               name="management_ip" required
+                               placeholder="例如：192.168.1.100">
+                        <div class="form-text">服务器的管理IP地址</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="hostname" class="form-label">主机名（可选）</label>
+                        <input type="text" class="form-control" id="hostname"
+                               name="hostname"
+                               placeholder="例如：web-server-01">
+                        <div class="form-text">可选，Agent上报后会自动更新</div>
+                    </div>
+
+                    <hr>
+
+                    <h5 class="mb-3">SSH连接信息</h5>
+
+                    <div class="mb-3">
+                        <label for="ssh_username" class="form-label">
+                            SSH用户名 <span class="text-danger">*</span>
+                        </label>
+                        <input type="text" class="form-control" id="ssh_username"
+                               name="ssh_username" required
+                               placeholder="例如：root">
+                        <div class="form-text">用于SSH连接和部署Agent</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="ssh_password" class="form-label">
+                            SSH密码 <span class="text-danger">*</span>
+                        </label>
+                        <input type="password" class="form-control" id="ssh_password"
+                               name="ssh_password" required
+                               placeholder="请输入SSH密码">
+                        <div class="form-text">密码将使用Base64编码存储</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="ssh_port" class="form-label">SSH端口</label>
+                        <input type="number" class="form-control" id="ssh_port"
+                               name="ssh_port" value="22">
+                        <div class="form-text">默认为22</div>
+                    </div>
+
+                    <hr>
+
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i>
+                        <strong>提示：</strong>
+                        <ul class="mb-0 mt-2">
+                            <li>添加服务器后，系统会自动尝试SSH连接</li>
+                            <li>连接成功后会自动部署Agent脚本</li>
+                            <li>Agent部署后会定时（15分钟）上报硬件信息</li>
+                            <li>请确保目标服务器已安装Python 3.x</li>
+                        </ul>
+                    </div>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{% url 'assets:server_list' %}" class="btn btn-secondary">
+                            <i class="bi bi-x-circle"></i> 取消
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle"></i> 添加服务器
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
