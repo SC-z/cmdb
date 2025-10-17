@@ -1,3 +1,0 @@
-Django==4.2
-djangorestframework==3.14.0
-paramiko==3.3.1

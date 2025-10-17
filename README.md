@@ -69,12 +69,29 @@ http://localhost:8000
 
 ### 方式二：手动部署
 
-1. **安装依赖**
+#### 前置要求
+
+- Python 3.12+
+- [uv](https://docs.astral.sh/uv/) (Python 包管理工具)
+
+安装 uv:
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+#### 部署步骤
+
+1. **创建虚拟环境并安装依赖**
 
 ```bash
-python3 -m venv .venv
+# 创建虚拟环境 (uv 会自动创建)
+uv venv
+
+# 激活虚拟环境
 source .venv/bin/activate
-pip install -r requirements.txt
+
+# 安装项目依赖 (从 pyproject.toml)
+uv pip install -e .
 ```
 
 2. **初始化数据库**
@@ -88,6 +105,24 @@ python manage.py createsuperuser
 
 ```bash
 python manage.py runserver 0.0.0.0:8000
+```
+
+#### 依赖管理
+
+使用 uv 管理依赖的常用命令：
+
+```bash
+# 安装新包
+uv pip install package-name
+
+# 更新所有依赖
+uv pip install --upgrade -e .
+
+# 查看已安装的包
+uv pip list
+
+# 同步依赖(根据 pyproject.toml)
+uv pip sync
 ```
 
 ## 📖 使用指南
@@ -202,6 +237,7 @@ cmdb/
 - **SSH**：Paramiko 3.3.1
 - **前端**：Bootstrap 5 + Bootstrap Icons
 - **容器化**：Docker + Docker Compose
+- **包管理**：uv (现代化的 Python 包管理工具)
 
 ## 📊 数据模型
 
