@@ -29,6 +29,12 @@
                     <i class="bi bi-arrow-repeat"></i> 立即执行
                 </button>
             </form>
+            <form method="post" action="{% url 'assets:task_delete' task.id %}" class="d-inline" onsubmit="return confirm('确定要清理此任务吗？执行历史将一并删除。');">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline-danger">
+                    <i class="bi bi-trash"></i> 清理任务
+                </button>
+            </form>
         </div>
     </div>
 </div>
@@ -80,6 +86,12 @@
                 {% if task.task_type == 'cron' %}
                     <div class="mt-3 small text-muted">Cron 表达式：{{ task.cron_expression }}</div>
                 {% endif %}
+                <div class="mt-4">
+                    <div class="subtle-text mb-2">执行命令</div>
+                    <div class="bg-dark text-white rounded p-3">
+                        <pre class="mb-0" style="white-space: pre-wrap; font-size: 0.9rem;">{{ task.command }}</pre>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -106,15 +118,17 @@
     <div class="card-body">
         <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
             <h6 class="text-uppercase text-muted mb-0" style="letter-spacing:.12em;">执行历史</h6>
-            {% if selected_run and selected_run.status in ['queued', 'scheduled'] %}
-                <form method="post" class="d-inline">
-                    {% csrf_token %}
-                    <input type="hidden" name="action" value="cancel_run">
-                    <input type="hidden" name="run_id" value="{{ selected_run.id }}">
-                    <button type="submit" class="btn btn-outline-danger btn-sm">
-                        <i class="bi bi-x-circle"></i> 取消当前任务
-                    </button>
-                </form>
+            {% if selected_run %}
+                {% if selected_run.status == 'queued' or selected_run.status == 'scheduled' %}
+                    <form method="post" class="d-inline">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="cancel_run">
+                        <input type="hidden" name="run_id" value="{{ selected_run.id }}">
+                        <button type="submit" class="btn btn-outline-danger btn-sm">
+                            <i class="bi bi-x-circle"></i> 取消当前任务
+                        </button>
+                    </form>
+                {% endif %}
             {% endif %}
         </div>
         <div class="row g-3">

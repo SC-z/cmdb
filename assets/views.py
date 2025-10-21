@@ -620,3 +620,18 @@ def task_detail_view(request, task_id):
         'task_servers': get_task_servers(task),
     }
     return render(request, 'task_detail.html', context)
+
+
+def task_delete_view(request, task_id):
+    """删除远程执行任务，支持级联清理相关记录。"""
+
+    task = get_object_or_404(ExecutionTask, id=task_id)
+
+    if request.method == 'POST':
+        task_name = task.name
+        task.delete()
+        messages.success(request, f'任务 {task_name} 已清理。')
+        return redirect('assets:task_list')
+
+    messages.error(request, '仅允许通过 POST 请求删除任务。')
+    return redirect('assets:task_detail', task_id=task.id)
