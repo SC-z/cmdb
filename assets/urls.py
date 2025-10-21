@@ -58,6 +58,11 @@ urlpatterns = [
     # 支持配置更新和批量操作功能
     path('settings/', views.system_settings_view, name='system_settings'),
 
+    # 远程执行任务
+    path('tasks/', views.task_list_view, name='task_list'),
+    path('tasks/create/', views.task_create_view, name='task_create'),
+    path('tasks/<int:task_id>/', views.task_detail_view, name='task_detail'),
+
     # ==================== API接口路由 ====================
     # 这些路由用于提供RESTful API服务，供Agent和外部系统调用
 

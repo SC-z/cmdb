@@ -1,0 +1,236 @@
+{% extends 'base.html' %}
+
+{% block title %}任务详情 - {{ task.name }} - CMDB{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12 d-flex flex-wrap justify-content-between gap-3 align-items-start">
+        <div>
+            <div class="page-title">
+                <i class="bi bi-terminal"></i>
+                <span>{{ task.name }}</span>
+            </div>
+            {% if task.description %}
+                <p class="subtle-text mt-2 mb-0">{{ task.description }}</p>
+            {% endif %}
+        </div>
+        <div class="d-flex gap-2">
+            <form method="post" class="d-inline">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="toggle">
+                <button type="submit" class="btn btn-outline-secondary">
+                    {% if task.is_enabled %}<i class="bi bi-pause-circle"></i> 停用任务{% else %}<i class="bi bi-play-circle"></i> 启用任务{% endif %}
+                </button>
+            </form>
+            <form method="post" class="d-inline">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="trigger">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-arrow-repeat"></i> 立即执行
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-xl-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <h6 class="text-uppercase text-muted mb-3" style="letter-spacing:.12em;">任务概览</h6>
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <div class="bg-light rounded px-3 py-3">
+                            <div class="subtle-text">任务类型</div>
+                            <div class="fw-semibold">{{ task.get_task_type_display }}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="bg-light rounded px-3 py-3">
+                            <div class="subtle-text">目标主机数</div>
+                            <div class="fw-semibold">{{ task_servers|length }}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="bg-light rounded px-3 py-3">
+                            <div class="subtle-text">任务状态</div>
+                            <div class="fw-semibold">{% if task.is_enabled %}已启用{% else %}已停用{% endif %}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="bg-light rounded px-3 py-3">
+                            <div class="subtle-text">最后执行</div>
+                            <div class="fw-semibold">{% if task.last_run_at %}{{ task.last_run_at|date:"Y-m-d H:i" }}{% else %}<span class="text-muted">--</span>{% endif %}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="bg-light rounded px-3 py-3">
+                            <div class="subtle-text">下次执行</div>
+                            <div class="fw-semibold">{% if task.next_run_at %}{{ task.next_run_at|date:"Y-m-d H:i" }}{% else %}<span class="text-muted">--</span>{% endif %}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="bg-light rounded px-3 py-3">
+                            <div class="subtle-text">发起人</div>
+                            <div class="fw-semibold">{% if task.created_by %}{{ task.created_by.get_full_name|default:task.created_by.username }}{% else %}<span class="text-muted">系统</span>{% endif %}</div>
+                        </div>
+                    </div>
+                </div>
+
+                {% if task.task_type == 'cron' %}
+                    <div class="mt-3 small text-muted">Cron 表达式：{{ task.cron_expression }}</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <h6 class="text-uppercase text-muted mb-3" style="letter-spacing:.12em;">目标服务器</h6>
+                <div class="d-grid gap-2">
+                    {% for server in task_servers %}
+                        <div class="border rounded px-3 py-2">
+                            <div class="fw-semibold">{{ server.hostname|default:server.management_ip }}</div>
+                            <div class="subtle-text mb-0">{{ server.management_ip }}</div>
+                        </div>
+                    {% empty %}
+                        <div class="text-muted">暂无服务器。</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
+            <h6 class="text-uppercase text-muted mb-0" style="letter-spacing:.12em;">执行历史</h6>
+            {% if selected_run and selected_run.status in ['queued', 'scheduled'] %}
+                <form method="post" class="d-inline">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="cancel_run">
+                    <input type="hidden" name="run_id" value="{{ selected_run.id }}">
+                    <button type="submit" class="btn btn-outline-danger btn-sm">
+                        <i class="bi bi-x-circle"></i> 取消当前任务
+                    </button>
+                </form>
+            {% endif %}
+        </div>
+        <div class="row g-3">
+            <div class="col-xl-4">
+                <div class="list-group">
+                    {% for run in runs %}
+                        <a class="list-group-item list-group-item-action {% if selected_run and selected_run.id == run.id %}active{% endif %}" href="{% url 'assets:task_detail' task.id %}?run={{ run.id }}">
+                            <div class="d-flex justify-content-between">
+                                <span>执行于 {{ run.created_at|date:"m-d H:i" }}</span>
+                                <span class="badge {% if run.status == 'success' %}bg-success{% elif run.status == 'failed' %}bg-danger{% elif run.status == 'running' %}bg-info text-dark{% elif run.status == 'queued' %}bg-warning text-dark{% elif run.status == 'scheduled' %}bg-secondary{% else %}bg-light text-dark{% endif %}">
+                                    {{ run.get_status_display }}
+                                </span>
+                            </div>
+                            <div class="small mt-1 text-nowrap">
+                                {% if run.started_at %}开始：{{ run.started_at|date:"m-d H:i" }}{% endif %}
+                                {% if run.finished_at %} · 完成：{{ run.finished_at|date:"m-d H:i" }}{% endif %}
+                            </div>
+                        </a>
+                    {% empty %}
+                        <div class="list-group-item text-muted">暂无执行记录。</div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="col-xl-8">
+                {% if selected_run %}
+                    {% for stage in selected_run.stages.all %}
+                        <div class="mb-4">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h6 class="mb-0">阶段：{{ stage.name }}</h6>
+                                <span class="badge {% if stage.status == 'success' %}bg-success{% elif stage.status == 'failed' %}bg-danger{% elif stage.status == 'running' %}bg-info text-dark{% else %}bg-secondary{% endif %}">
+                                    {{ stage.get_status_display }}
+                                </span>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>服务器</th>
+                                            <th>状态</th>
+                                            <th>开始/结束时间</th>
+                                            <th>退出码</th>
+                                            <th>操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for job in stage.jobs.all %}
+                                            <tr>
+                                                <td>
+                                                    <div class="fw-semibold">{{ job.server.hostname|default:job.server.management_ip }}</div>
+                                                    <div class="text-muted small">{{ job.server.management_ip }}</div>
+                                                </td>
+                                                <td>
+                                                    <span class="badge {% if job.status == 'success' %}bg-success{% elif job.status == 'failed' %}bg-danger{% elif job.status == 'running' %}bg-info text-dark{% else %}bg-secondary{% endif %}">
+                                                        {{ job.get_status_display }}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <div class="small">{% if job.started_at %}{{ job.started_at|date:"H:i:s" }}{% else %}--{% endif %}</div>
+                                                    <div class="small text-muted">{% if job.finished_at %}{{ job.finished_at|date:"H:i:s" }}{% else %}--{% endif %}</div>
+                                                </td>
+                                                <td>
+                                                    {% if job.exit_code is not None %}
+                                                        {{ job.exit_code }}
+                                                    {% else %}
+                                                        <span class="text-muted">--</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    <button class="btn btn-link btn-sm" data-bs-toggle="collapse" data-bs-target="#job-{{ job.id }}">
+                                                        查看日志
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                            <tr id="job-{{ job.id }}" class="collapse">
+                                                <td colspan="5">
+                                                    <div class="row g-3">
+                                                        <div class="col-md-6">
+                                                            <div class="bg-light rounded p-3">
+                                                                <div class="small text-muted mb-2">标准输出</div>
+                                                                <pre class="mb-0" style="white-space:pre-wrap;">{{ job.stdout|default:"(空)" }}</pre>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-md-6">
+                                                            <div class="bg-light rounded p-3">
+                                                                <div class="small text-muted mb-2">错误输出</div>
+                                                                <pre class="mb-0" style="white-space:pre-wrap;">{{ job.stderr|default:"(空)" }}</pre>
+                                                                {% if job.error_message %}
+                                                                    <div class="text-danger small mt-2">异常：{{ job.error_message }}</div>
+                                                                {% endif %}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    {% empty %}
+                        <div class="text-muted">暂无阶段信息。</div>
+                    {% endfor %}
+
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="retry_failed">
+                        <input type="hidden" name="run_id" value="{{ selected_run.id }}">
+                        <button type="submit" class="btn btn-outline-primary" {% if selected_run.status == 'running' %}disabled{% endif %}>
+                            <i class="bi bi-arrow-clockwise"></i> 仅重试失败节点
+                        </button>
+                    </form>
+                {% else %}
+                    <div class="text-muted">选择左侧执行记录查看详情。</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

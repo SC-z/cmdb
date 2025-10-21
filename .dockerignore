@@ -58,3 +58,4 @@ docs
 *.tmp
 *.bak
 tmp/
+AGENTS.md

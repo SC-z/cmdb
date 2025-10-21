@@ -3,12 +3,19 @@
 {% block title %}添加服务器 - CMDB{% endblock %}
 
 {% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="page-title">
+            <i class="bi bi-plus-circle"></i>
+            <span>添加服务器</span>
+        </div>
+        <p class="subtle-text mt-2 mb-0">填写基础信息与 SSH 凭据后即可纳管新主机。</p>
+    </div>
+</div>
+
 <div class="row">
-    <div class="col-md-8 offset-md-2">
+    <div class="col-lg-9 col-xl-7 col-xxl-6 mx-auto">
         <div class="card">
-            <div class="card-header">
-                <h4><i class="bi bi-plus-circle"></i> 添加服务器</h4>
-            </div>
             <div class="card-body">
                 <form method="post">
                     {% csrf_token %}

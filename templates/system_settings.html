@@ -3,152 +3,116 @@
 {% block title %}系统设置 - CMDB{% endblock %}
 
 {% block content %}
-<div class="row mb-3">
-    <div class="col-md-12">
-        <h2><i class="bi bi-gear"></i> 系统设置</h2>
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="page-title">
+            <i class="bi bi-sliders"></i>
+            <span>系统设置</span>
+        </div>
+        <p class="subtle-text mt-2 mb-0">简化白名单与采集计划配置，保持 Agent 行为一致。</p>
     </div>
 </div>
 
-<!-- 统计信息 -->
-<div class="row mb-4">
+<div class="row g-3 mb-4">
     <div class="col-md-4">
-        <div class="card">
-            <div class="card-body text-center">
-                <h5 class="text-muted">服务器总数</h5>
-                <h2 class="mb-0">{{ total_servers }}</h2>
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body text-center py-4">
+                <span class="stat-label">服务器总数</span>
+                <h2 class="mt-2 mb-0">{{ total_servers }}</h2>
             </div>
         </div>
     </div>
     <div class="col-md-4">
-        <div class="card">
-            <div class="card-body text-center">
-                <h5 class="text-muted">已部署Agent</h5>
-                <h2 class="mb-0 text-success">{{ deployed_servers }}</h2>
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body text-center py-4">
+                <span class="stat-label">已部署 Agent</span>
+                <h2 class="mt-2 mb-0 text-success">{{ deployed_servers }}</h2>
             </div>
         </div>
     </div>
     <div class="col-md-4">
-        <div class="card">
-            <div class="card-body text-center">
-                <h5 class="text-muted">最后更新时间</h5>
-                <h6 class="mb-0">{{ config.updated_at|date:"Y-m-d H:i:s" }}</h6>
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body text-center py-4">
+                <span class="stat-label">最后更新</span>
+                <h6 class="mt-2 mb-0">{{ config.updated_at|date:"Y-m-d H:i:s" }}</h6>
             </div>
         </div>
     </div>
 </div>
 
-<!-- 白名单和定时任务配置 -->
-<div class="row mb-4">
-    <div class="col-md-12">
-        <div class="card">
-            <div class="card-header bg-primary text-white">
-                <h5 class="mb-0"><i class="bi bi-sliders"></i> 系统配置</h5>
-            </div>
-            <div class="card-body">
+<div class="row g-4">
+    <div class="col-12 col-xl-7">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-4">
+                <h5 class="mb-3">访问控制与采集计划</h5>
                 <form method="post">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="update_config">
 
                     <div class="mb-4">
-                        <label class="form-label"><i class="bi bi-shield-lock"></i> <strong>IP白名单配置</strong></label>
-                        <textarea class="form-control font-monospace" name="allowed_networks" rows="8" style="font-size: 0.9rem;">{{ config.allowed_networks }}</textarea>
-                        <small class="text-muted">
-                            每行一个IP地址或网段（CIDR格式），例如：<br>
-                            - <code>10.10.90.0/24</code> （允许10.10.90.0-255）<br>
-                            - <code>192.168.1.100</code> （允许单个IP）<br>
-                            - <code># 注释行</code> （以#开头的行将被忽略）
-                        </small>
+                        <label class="form-label">IP 白名单</label>
+                        <textarea class="form-control font-monospace" name="allowed_networks" rows="6" placeholder="10.10.90.0/24&#10;192.168.1.100">{{ config.allowed_networks }}</textarea>
+                        <div class="form-text">每行一个 IP 或 CIDR，支持使用 # 注释。</div>
                     </div>
 
-                    <hr>
-
-                    <div class="mb-3">
-                        <label class="form-label"><i class="bi bi-clock"></i> <strong>Cron定时表达式</strong></label>
-                        <input type="text" class="form-control font-monospace" name="cron_expression" value="{{ config.cron_expression }}" required style="max-width: 300px;">
-                        <small class="text-muted">
-                            格式：<code>分 时 日 月 周</code><br>
-                            示例：<br>
-                            - <code>0 * * * *</code> 每小时执行<br>
-                            - <code>*/30 * * * *</code> 每30分钟执行<br>
-                            - <code>0 */2 * * *</code> 每2小时执行<br>
-                            - <code>0 0 * * *</code> 每天凌晨执行
-                        </small>
+                    <div class="row g-3 align-items-end">
+                        <div class="col-md-6">
+                            <label class="form-label">Cron 定时表达式</label>
+                            <input type="text" class="form-control font-monospace" name="cron_expression" value="{{ config.cron_expression }}" required>
+                            <div class="form-text">示例：0 * * * * 或 */30 * * * *</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">任务说明（可选）</label>
+                            <input type="text" class="form-control" name="cron_description" value="{{ config.cron_description }}" placeholder="例如：每小时执行一次">
+                        </div>
                     </div>
 
-                    <div class="mb-3">
-                        <label class="form-label">定时任务描述</label>
-                        <input type="text" class="form-control" name="cron_description" value="{{ config.cron_description }}" style="max-width: 400px;" placeholder="例如：每小时执行一次">
+                    <div class="d-flex flex-wrap gap-2 mt-4">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-save"></i> 保存设置
+                        </button>
                     </div>
-
-                    <button type="submit" class="btn btn-primary">
-                        <i class="bi bi-save"></i> 保存配置
-                    </button>
                 </form>
             </div>
         </div>
-    </div>
-</div>
 
-<!-- 批量更新定时任务 -->
-<div class="row mb-4">
-    <div class="col-md-12">
-        <div class="card border-warning">
-            <div class="card-header bg-warning text-dark">
-                <h5 class="mb-0"><i class="bi bi-arrow-repeat"></i> 批量更新定时任务</h5>
-            </div>
-            <div class="card-body">
-                <p class="mb-2">
-                    <i class="bi bi-info-circle"></i>
-                    将上方配置的Cron表达式批量推送到所有已部署Agent的服务器（共 <strong>{{ deployed_servers }}</strong> 台）
-                </p>
-                <p class="text-muted mb-3">
-                    当前配置：<code class="bg-light px-2 py-1">{{ config.cron_expression }}</code> - {{ config.cron_description }}
-                </p>
-
-                <div class="alert alert-warning" role="alert">
-                    <i class="bi bi-exclamation-triangle"></i>
-                    <strong>注意：</strong>此操作将通过SSH连接所有已部署Agent的服务器并更新其 <code>/etc/cron.d/cmdb_agent</code> 文件。请确保配置正确后再执行。
+        <div class="card shadow-sm border-0 mt-4 bg-warning-subtle">
+            <div class="card-body p-4">
+                <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
+                    <div>
+                        <h6 class="mb-1"><i class="bi bi-arrow-repeat text-warning"></i> 推送定时任务</h6>
+                        <p class="subtle-text mb-0">将当前 Cron 配置同步至 {{ deployed_servers }} 台已部署 Agent 的服务器。</p>
+                        <p class="mb-0 mt-2 small text-muted">当前配置：<code class="bg-light px-2 py-1">{{ config.cron_expression }}</code> {{ config.cron_description }}</p>
+                    </div>
+                    <form method="post" onsubmit="return confirm('确定要更新所有主机的定时任务吗？\n\n这将影响 {{ deployed_servers }} 台服务器。');">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="update_all_cron">
+                        <button type="submit" class="btn btn-warning">
+                            <i class="bi bi-arrow-clockwise"></i> 推送到所有主机
+                        </button>
+                    </form>
                 </div>
-
-                <form method="post" onsubmit="return confirm('确定要更新所有主机的定时任务吗？\n\n这将影响 {{ deployed_servers }} 台服务器。');">
-                    {% csrf_token %}
-                    <input type="hidden" name="action" value="update_all_cron">
-                    <button type="submit" class="btn btn-warning">
-                        <i class="bi bi-arrow-clockwise"></i> 一键更新所有主机定时任务
-                    </button>
-                </form>
             </div>
         </div>
     </div>
-</div>
 
-<!-- 使用说明 -->
-<div class="row">
-    <div class="col-md-12">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="bi bi-info-circle"></i> 使用说明</h5>
-            </div>
-            <div class="card-body">
-                <h6><strong>远程脚本执行模式：</strong></h6>
-                <ul>
-                    <li>Agent脚本存储在CMDB服务器（<code>/opt/cmdb/assets/agent.py</code>），节点通过curl远程执行</li>
-                    <li>更新agent.py后，所有节点将自动使用新版本脚本（无需重新部署）</li>
-                    <li>删除节点时只需删除 <code>/etc/cron.d/cmdb_agent</code> 文件即可</li>
-                </ul>
-
-                <h6><strong>白名单说明：</strong></h6>
-                <ul>
-                    <li>只有白名单中的IP才能访问 <code>/api/agent/script/</code> 下载脚本</li>
-                    <li>支持CIDR网段表示法（如 <code>10.0.0.0/8</code> 表示10.0.0.0-10.255.255.255）</li>
-                    <li>修改白名单后立即生效，无需重启服务</li>
-                </ul>
-
-                <h6><strong>定时任务说明：</strong></h6>
-                <ul>
-                    <li>修改Cron表达式后，需要点击"一键更新所有主机定时任务"才会生效</li>
-                    <li>新添加的服务器将自动使用最新的Cron配置</li>
-                    <li>定时任务文件位置：<code>/etc/cron.d/cmdb_agent</code></li>
+    <div class="col-12 col-xl-5">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body p-4">
+                <h6 class="mb-3 text-uppercase text-muted" style="letter-spacing: .12em;">操作提示</h6>
+                <ul class="list-unstyled mb-0 small text-muted d-grid gap-3">
+                    <li class="d-flex gap-3">
+                        <i class="bi bi-shield-check text-primary fs-5"></i>
+                        <span>白名单更新后立即生效。建议保持列表精简，方便审计与追踪。</span>
+                    </li>
+                    <li class="d-flex gap-3">
+                        <i class="bi bi-clock-history text-primary fs-5"></i>
+                        <span>推送定时任务前先在单台主机验证 Cron 表达式，确保采集节奏正确。</span>
+                    </li>
+                    <li class="d-flex gap-3">
+                        <i class="bi bi-hdd-network text-primary fs-5"></i>
+                        <span>新加入的服务器会自动继承当前定时配置与 Agent 版本，无需额外操作。</span>
+                    </li>
                 </ul>
             </div>
         </div>

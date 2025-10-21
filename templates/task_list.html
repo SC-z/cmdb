@@ -1,0 +1,154 @@
+{% extends 'base.html' %}
+
+{% block title %}任务列表 - CMDB{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12 d-flex justify-content-between flex-wrap gap-3 align-items-start">
+        <div>
+            <div class="page-title">
+                <i class="bi bi-terminal"></i>
+                <span>任务列表</span>
+            </div>
+            <p class="subtle-text mt-2 mb-0">集中管理一次性与周期性远程命令执行，快速掌握运行状态。</p>
+        </div>
+        <div>
+            <a href="{% url 'assets:task_create' %}" class="btn btn-primary">
+                <i class="bi bi-plus-lg"></i> 新建任务
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label">任务状态</label>
+                <select class="form-select" name="status">
+                    <option value="">全部状态</option>
+                    {% for value, label in status_choices %}
+                        <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">任务类型</label>
+                <select class="form-select" name="type">
+                    <option value="">全部类型</option>
+                    {% for value, label in task_type_choices %}
+                        <option value="{{ value }}" {% if task_type_filter == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">发起人</label>
+                <input type="text" class="form-control" name="owner" value="{{ owner_filter }}" placeholder="用户名关键词">
+            </div>
+            <div class="col-md-3 d-flex gap-2">
+                <button type="submit" class="btn btn-primary flex-grow-1"><i class="bi bi-funnel"></i> 筛选</button>
+                <a href="{% url 'assets:task_list' %}" class="btn btn-light"><i class="bi bi-arrow-counterclockwise"></i></a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th scope="col">任务</th>
+                        <th scope="col" class="text-center">类型</th>
+                        <th scope="col" class="text-center">状态</th>
+                        <th scope="col" class="text-center">目标主机</th>
+                        <th scope="col">计划/下次执行</th>
+                        <th scope="col">发起人</th>
+                        <th scope="col" class="text-end">操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in task_items %}
+                        {% with task=item.task latest=item.latest_run upcoming=item.upcoming_run %}
+                        <tr>
+                            <td>
+                                <a href="{% url 'assets:task_detail' task.id %}" class="text-decoration-none fw-semibold">{{ task.name }}</a>
+                                {% if task.description %}
+                                    <div class="subtle-text mt-1">{{ task.description|truncatechars:80 }}</div>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                <span class="badge {% if task.task_type == 'cron' %}bg-secondary{% else %}bg-primary{% endif %}">
+                                    {{ task.get_task_type_display }}
+                                </span>
+                            </td>
+                            <td class="text-center">
+                                {% if latest %}
+                                    {% if latest.status == 'success' %}
+                                        <span class="badge bg-success">{{ latest.get_status_display }}</span>
+                                    {% elif latest.status == 'running' %}
+                                        <span class="badge bg-info text-dark">{{ latest.get_status_display }}</span>
+                                    {% elif latest.status == 'failed' %}
+                                        <span class="badge bg-danger">{{ latest.get_status_display }}</span>
+                                    {% elif latest.status == 'queued' %}
+                                        <span class="badge bg-warning text-dark">{{ latest.get_status_display }}</span>
+                                    {% elif latest.status == 'scheduled' %}
+                                        <span class="badge bg-secondary">{{ latest.get_status_display }}</span>
+                                    {% else %}
+                                        <span class="badge bg-light text-dark">{{ latest.get_status_display }}</span>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="badge bg-light text-dark">未执行</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                <span class="badge bg-light text-dark">{{ item.target_count }}</span>
+                            </td>
+                            <td>
+                                {% if task.task_type == 'cron' %}
+                                    {% if task.next_run_at %}
+                                        <div>{{ task.next_run_at|date:"Y-m-d H:i" }}</div>
+                                    {% else %}
+                                        <div class="text-muted">待计算</div>
+                                    {% endif %}
+                                    <div class="text-muted small">Cron: {{ task.cron_expression }}</div>
+                                {% else %}
+                                    {% if upcoming and upcoming.scheduled_for %}
+                                        <div>{{ upcoming.scheduled_for|date:"Y-m-d H:i" }}</div>
+                                        <div class="text-muted small">{{ upcoming.get_status_display }}</div>
+                                    {% elif latest and latest.started_at %}
+                                        <div>{{ latest.started_at|date:"Y-m-d H:i" }}</div>
+                                        <div class="text-muted small">最近执行</div>
+                                    {% else %}
+                                        <div class="text-muted">未计划</div>
+                                    {% endif %}
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if task.created_by %}
+                                    {{ task.created_by.get_full_name|default:task.created_by.username }}
+                                {% else %}
+                                    <span class="text-muted">系统</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                <a href="{% url 'assets:task_detail' task.id %}" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-eye"></i> 查看
+                                </a>
+                            </td>
+                        </tr>
+                        {% endwith %}
+                    {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center text-muted py-5">
+                                <i class="bi bi-inbox"></i> 暂无任务，点击“新建任务”开始配置。
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

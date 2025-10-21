@@ -1,5 +1,14 @@
 from django.contrib import admin
-from .models import Server, HardwareInfo, SystemConfig
+from .models import (
+    Server,
+    HardwareInfo,
+    SystemConfig,
+    ExecutionTask,
+    ExecutionTaskTarget,
+    ExecutionRun,
+    ExecutionStage,
+    ExecutionJob,
+)
 
 
 @admin.register(Server)
@@ -79,3 +88,58 @@ class SystemConfigAdmin(admin.ModelAdmin):
     def has_delete_permission(self, request, obj=None):
         # 不允许删除配置
         return False
+
+
+class ExecutionTaskTargetInline(admin.TabularInline):
+    model = ExecutionTaskTarget
+    extra = 0
+    autocomplete_fields = ['server']
+
+
+@admin.register(ExecutionTask)
+class ExecutionTaskAdmin(admin.ModelAdmin):
+    list_display = ['name', 'task_type', 'is_enabled', 'last_run_at', 'next_run_at', 'created_by', 'created_at']
+    list_filter = ['task_type', 'is_enabled', 'created_at']
+    search_fields = ['name', 'description', 'command']
+    autocomplete_fields = ['created_by']
+    inlines = [ExecutionTaskTargetInline]
+    readonly_fields = ['last_run_at', 'next_run_at', 'created_at', 'updated_at']
+
+
+class ExecutionJobInline(admin.TabularInline):
+    model = ExecutionJob
+    extra = 0
+    readonly_fields = ['server', 'status', 'exit_code', 'started_at', 'finished_at']
+
+
+class ExecutionStageInline(admin.TabularInline):
+    model = ExecutionStage
+    extra = 0
+    readonly_fields = ['name', 'status', 'started_at', 'finished_at']
+
+
+@admin.register(ExecutionStage)
+class ExecutionStageAdmin(admin.ModelAdmin):
+    list_display = ['run', 'name', 'order', 'status', 'started_at', 'finished_at']
+    list_filter = ['status']
+    search_fields = ['run__task__name', 'name']
+    autocomplete_fields = ['run']
+
+
+@admin.register(ExecutionRun)
+class ExecutionRunAdmin(admin.ModelAdmin):
+    list_display = ['task', 'status', 'scheduled_for', 'started_at', 'finished_at', 'triggered_by', 'is_manual']
+    list_filter = ['status', 'is_manual', 'created_at']
+    search_fields = ['task__name', 'notes']
+    autocomplete_fields = ['task', 'triggered_by']
+    inlines = [ExecutionStageInline]
+    readonly_fields = ['created_at']
+
+
+@admin.register(ExecutionJob)
+class ExecutionJobAdmin(admin.ModelAdmin):
+    list_display = ['stage', 'server', 'status', 'exit_code', 'started_at', 'finished_at']
+    list_filter = ['status', 'stage__run__task__task_type']
+    search_fields = ['stage__run__task__name', 'server__management_ip']
+    autocomplete_fields = ['stage', 'server']
+    readonly_fields = ['stdout', 'stderr', 'error_message']

@@ -1,5 +1,10 @@
 import base64
 from django.db import models
+from django.contrib.auth import get_user_model
+from django.utils import timezone
+
+
+User = get_user_model()
 
 
 class Server(models.Model):
@@ -145,6 +150,219 @@ class Server(models.Model):
                 # 如果解码失败（如数据损坏），返回空字符串
                 return ''
         return ''
+
+
+class ExecutionTask(models.Model):
+    """
+    远程批量执行任务定义
+
+    用于描述一次性或周期性命令任务的基础信息，
+    包括目标服务器集合、命令内容以及调度策略等。
+    """
+
+    TASK_TYPE_CHOICES = [
+        ('one_off', '一次性任务'),
+        ('cron', '周期任务'),
+    ]
+
+    name = models.CharField('任务名称', max_length=200)
+    description = models.TextField('任务描述', blank=True)
+    command = models.TextField('执行命令')
+    task_type = models.CharField('任务类型', max_length=20, choices=TASK_TYPE_CHOICES, default='one_off')
+    cron_expression = models.CharField('Cron表达式', max_length=100, blank=True)
+    is_enabled = models.BooleanField('启用', default=True)
+    last_run_at = models.DateTimeField('最后执行时间', null=True, blank=True)
+    next_run_at = models.DateTimeField('下次执行时间', null=True, blank=True)
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='execution_tasks',
+        verbose_name='创建人'
+    )
+    created_at = models.DateTimeField('创建时间', auto_now_add=True)
+    updated_at = models.DateTimeField('更新时间', auto_now=True)
+
+    servers = models.ManyToManyField(
+        Server,
+        through='ExecutionTaskTarget',
+        related_name='execution_tasks',
+        verbose_name='目标服务器'
+    )
+
+    class Meta:
+        verbose_name = '远程执行任务'
+        verbose_name_plural = '远程执行任务'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return self.name
+
+    @property
+    def is_periodic(self):
+        return self.task_type == 'cron'
+
+    def mark_last_run(self, finished_at=None):
+        self.last_run_at = finished_at or timezone.now()
+        update_fields = ['last_run_at']
+        if not self.is_periodic:
+            self.next_run_at = None
+            update_fields.append('next_run_at')
+        self.save(update_fields=update_fields)
+
+
+class ExecutionTaskTarget(models.Model):
+    """任务与服务器的关联关系，保留勾选顺序。"""
+
+    task = models.ForeignKey(
+        ExecutionTask,
+        on_delete=models.CASCADE,
+        related_name='targets',
+        verbose_name='任务'
+    )
+    server = models.ForeignKey(
+        Server,
+        on_delete=models.CASCADE,
+        related_name='task_targets',
+        verbose_name='服务器'
+    )
+    order = models.PositiveIntegerField('排序', default=0)
+    created_at = models.DateTimeField('创建时间', auto_now_add=True)
+
+    class Meta:
+        verbose_name = '任务目标服务器'
+        verbose_name_plural = '任务目标服务器'
+        unique_together = ('task', 'server')
+        ordering = ['order', 'id']
+
+    def __str__(self):
+        return f"{self.task.name} -> {self.server.management_ip}"
+
+
+class ExecutionRun(models.Model):
+    """一次任务执行记录，支持一次性和周期任务的历史。"""
+
+    STATUS_CHOICES = [
+        ('scheduled', '已计划'),
+        ('queued', '排队中'),
+        ('running', '执行中'),
+        ('success', '执行成功'),
+        ('failed', '执行失败'),
+        ('cancelled', '已取消'),
+    ]
+
+    task = models.ForeignKey(
+        ExecutionTask,
+        on_delete=models.CASCADE,
+        related_name='runs',
+        verbose_name='任务'
+    )
+    status = models.CharField('状态', max_length=20, choices=STATUS_CHOICES, default='queued')
+    scheduled_for = models.DateTimeField('计划执行时间', null=True, blank=True)
+    started_at = models.DateTimeField('开始时间', null=True, blank=True)
+    finished_at = models.DateTimeField('结束时间', null=True, blank=True)
+    triggered_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='execution_runs',
+        verbose_name='触发人'
+    )
+    is_manual = models.BooleanField('手动触发', default=False)
+    notes = models.CharField('备注', max_length=255, blank=True)
+    created_at = models.DateTimeField('创建时间', auto_now_add=True)
+
+    class Meta:
+        verbose_name = '任务执行'
+        verbose_name_plural = '任务执行'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.task.name} / {self.get_status_display()}"
+
+    @property
+    def is_finished(self):
+        return self.status in {'success', 'failed', 'cancelled'}
+
+
+class ExecutionStage(models.Model):
+    """执行阶段，便于扩展多阶段流水线。"""
+
+    STATUS_CHOICES = [
+        ('pending', '待执行'),
+        ('running', '执行中'),
+        ('success', '成功'),
+        ('failed', '失败'),
+        ('skipped', '跳过'),
+    ]
+
+    run = models.ForeignKey(
+        ExecutionRun,
+        on_delete=models.CASCADE,
+        related_name='stages',
+        verbose_name='任务执行'
+    )
+    name = models.CharField('阶段名称', max_length=120)
+    order = models.PositiveIntegerField('阶段顺序', default=1)
+    status = models.CharField('阶段状态', max_length=20, choices=STATUS_CHOICES, default='pending')
+    started_at = models.DateTimeField('开始时间', null=True, blank=True)
+    finished_at = models.DateTimeField('结束时间', null=True, blank=True)
+
+    class Meta:
+        verbose_name = '任务阶段'
+        verbose_name_plural = '任务阶段'
+        ordering = ['order', 'id']
+
+    def __str__(self):
+        return f"{self.run} - {self.name}"
+
+
+class ExecutionJob(models.Model):
+    """单台服务器上的执行记录。"""
+
+    STATUS_CHOICES = [
+        ('pending', '待执行'),
+        ('running', '执行中'),
+        ('success', '成功'),
+        ('failed', '失败'),
+        ('cancelled', '已取消'),
+    ]
+
+    stage = models.ForeignKey(
+        ExecutionStage,
+        on_delete=models.CASCADE,
+        related_name='jobs',
+        verbose_name='执行阶段'
+    )
+    server = models.ForeignKey(
+        Server,
+        on_delete=models.CASCADE,
+        related_name='execution_jobs',
+        verbose_name='服务器'
+    )
+    status = models.CharField('状态', max_length=20, choices=STATUS_CHOICES, default='pending')
+    exit_code = models.IntegerField('退出码', null=True, blank=True)
+    stdout = models.TextField('标准输出', blank=True)
+    stderr = models.TextField('错误输出', blank=True)
+    error_message = models.TextField('错误信息', blank=True)
+    started_at = models.DateTimeField('开始时间', null=True, blank=True)
+    finished_at = models.DateTimeField('结束时间', null=True, blank=True)
+
+    class Meta:
+        verbose_name = '服务器执行记录'
+        verbose_name_plural = '服务器执行记录'
+        ordering = ['stage__order', 'server__management_ip']
+
+    def __str__(self):
+        return f"{self.server.management_ip} - {self.stage.run.task.name}"
+
+    @property
+    def duration(self):
+        if self.started_at and self.finished_at:
+            return self.finished_at - self.started_at
+        return None
 
 
 class HardwareInfo(models.Model):

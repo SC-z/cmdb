@@ -4,7 +4,7 @@
 
 {% block content %}
 <div class="row mb-3">
-    <div class="col-md-12">
+    <div class="col-12">
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb">
                 <li class="breadcrumb-item"><a href="{% url 'assets:server_list' %}">服务器列表</a></li>
@@ -14,24 +14,26 @@
     </div>
 </div>
 
-<div class="row mb-3">
-    <div class="col-md-12">
-        <h2>
-            <i class="bi bi-hdd-rack"></i> 服务器详情
-            {% if server.status == 'online' %}
-                <span class="badge bg-success">在线</span>
-            {% elif server.status == 'offline' %}
-                <span class="badge bg-danger">离线</span>
-            {% else %}
-                <span class="badge bg-secondary">未知</span>
-            {% endif %}
-        </h2>
+<div class="row mb-4">
+    <div class="col-12 d-flex justify-content-between align-items-center flex-wrap gap-3">
+        <div class="page-title mb-0">
+            <i class="bi bi-hdd-rack"></i>
+            <span>服务器详情</span>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge {% if server.status == 'online' %}bg-success{% elif server.status == 'offline' %}bg-danger{% else %}bg-secondary{% endif %}">
+                {% if server.status == 'online' %}在线{% elif server.status == 'offline' %}离线{% else %}未知{% endif %}
+            </span>
+            <span class="badge {% if server.agent_deployed %}bg-success{% else %}bg-warning text-dark{% endif %}">
+                {% if server.agent_deployed %}<i class="bi bi-check-circle"></i> Agent 已部署{% else %}<i class="bi bi-exclamation-circle"></i> Agent 未部署{% endif %}
+            </span>
+        </div>
     </div>
 </div>
 
 <!-- 基本信息 -->
 <div class="row mb-4">
-    <div class="col-md-12">
+    <div class="col-12">
         <div class="card">
             <div class="card-header bg-primary text-white">
                 <h5 class="mb-0"><i class="bi bi-info-circle"></i> 基本信息</h5>
@@ -108,14 +110,14 @@
 {% if server.hardware %}
 <!-- CPU信息 -->
 <div class="row mb-4">
-    <div class="col-md-12">
+    <div class="col-12">
         <div class="card">
             <div class="card-header bg-info text-white">
                 <h5 class="mb-0"><i class="bi bi-cpu"></i> CPU信息</h5>
             </div>
             <div class="card-body">
                 <div class="row">
-                    <div class="col-md-12">
+                    <div class="col-12">
                         <table class="table table-bordered">
                             <tr>
                                 <th width="20%">CPU型号</th>
@@ -147,7 +149,7 @@
 
 <!-- 内存信息 -->
 <div class="row mb-4">
-    <div class="col-md-12">
+    <div class="col-12">
         <div class="card">
             <div class="card-header bg-success text-white">
                 <h5 class="mb-0"><i class="bi bi-memory"></i> 内存信息</h5>
@@ -197,7 +199,7 @@
 
 <!-- 磁盘信息 -->
 <div class="row mb-4">
-    <div class="col-md-12">
+    <div class="col-12">
         <div class="card">
             <div class="card-header bg-warning text-dark">
                 <h5 class="mb-0"><i class="bi bi-hdd"></i> 磁盘信息</h5>
@@ -254,7 +256,7 @@
 
 <!-- 原始数据 -->
 <div class="row mb-4">
-    <div class="col-md-12">
+    <div class="col-12">
         <div class="card">
             <div class="card-header">
                 <h5 class="mb-0">
@@ -274,7 +276,7 @@
 </div>
 
 <div class="row mb-4">
-    <div class="col-md-12">
+    <div class="col-12">
         <small class="text-muted">
             <i class="bi bi-clock"></i> 硬件信息采集时间: {{ server.hardware.collected_at|date:"Y-m-d H:i:s" }}
         </small>
@@ -283,7 +285,7 @@
 
 {% else %}
 <div class="row mb-4">
-    <div class="col-md-12">
+    <div class="col-12">
         <div class="alert alert-warning">
             <i class="bi bi-exclamation-triangle"></i> 暂无硬件信息，等待Agent上报数据...
         </div>

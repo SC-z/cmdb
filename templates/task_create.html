@@ -1,0 +1,212 @@
+{% extends 'base.html' %}
+
+{% block title %}新建远程执行任务 - CMDB{% endblock %}
+
+{% block extra_css %}
+<style>
+    .step-card {
+        border-left: 4px solid #4c6ef5;
+    }
+    .step-index {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: #4c6ef5;
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="page-title">
+            <i class="bi bi-plus-circle"></i>
+            <span>新建远程执行任务</span>
+        </div>
+        <p class="subtle-text mt-2 mb-0">
+            配置命令、目标主机与调度策略，快速落地批量操作流水线。
+        </p>
+    </div>
+</div>
+
+<form method="post" class="d-grid gap-4">
+    {% csrf_token %}
+
+    <div class="card shadow-sm border-0 step-card">
+        <div class="card-body">
+            <div class="d-flex gap-3 align-items-start mb-3">
+                <div class="step-index">1</div>
+                <div>
+                    <h5 class="mb-1">任务信息</h5>
+                    <p class="subtle-text mb-0">命名任务并补充描述，方便后续审计与回溯。</p>
+                </div>
+            </div>
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label">任务名称</label>
+                    {{ form.name }}
+                    {% if form.name.errors %}
+                        <div class="text-danger small">{{ form.name.errors.0 }}</div>
+                    {% endif %}
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">任务类型</label>
+                    <div class="d-flex gap-4">
+                        {{ form.task_type }}
+                    </div>
+                    {% if form.task_type.errors %}
+                        <div class="text-danger small">{{ form.task_type.errors.0 }}</div>
+                    {% endif %}
+                </div>
+                <div class="col-12">
+                    <label class="form-label">任务描述</label>
+                    {{ form.description }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0 step-card">
+        <div class="card-body">
+            <div class="d-flex gap-3 align-items-start mb-3">
+                <div class="step-index">2</div>
+                <div>
+                    <h5 class="mb-1">命令内容</h5>
+                    <p class="subtle-text mb-0">填写需要远程执行的 Shell 指令，支持多行脚本。</p>
+                </div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">执行命令</label>
+                {{ form.command }}
+                {% if form.command.errors %}
+                    <div class="text-danger small">{{ form.command.errors.0 }}</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0 step-card">
+        <div class="card-body">
+            <div class="d-flex gap-3 align-items-start mb-3">
+                <div class="step-index">3</div>
+                <div>
+                    <h5 class="mb-1">目标主机</h5>
+                    <p class="subtle-text mb-0">从资产列表中勾选需要执行的服务器，当前共 {{ server_count }} 台记录。</p>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-12">
+                    <div class="border rounded p-3 bg-light">
+                        {% for checkbox in form.servers %}
+                            <div class="form-check form-check-inline me-4 mb-2">
+                                {{ checkbox.tag }}
+                                <label class="form-check-label">{{ checkbox.choice_label }}</label>
+                            </div>
+                        {% empty %}
+                            <div class="text-muted">暂无服务器，请先在“服务器列表”中添加。</div>
+                        {% endfor %}
+                    </div>
+                    {% if form.servers.errors %}
+                        <div class="text-danger small mt-2">{{ form.servers.errors.0 }}</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0 step-card" id="schedule-card">
+        <div class="card-body">
+            <div class="d-flex gap-3 align-items-start mb-3">
+                <div class="step-index">4</div>
+                <div>
+                    <h5 class="mb-1">执行策略</h5>
+                    <p class="subtle-text mb-0">选择立即执行或指定时间执行；周期任务需补充 Cron 表达式。</p>
+                </div>
+            </div>
+            <div class="row g-3" id="one-off-options">
+                <div class="col-md-6">
+                    <label class="form-label">执行方式</label>
+                    <div class="d-flex gap-4">
+                        {{ form.execution_mode }}
+                    </div>
+                    {% if form.execution_mode.errors %}
+                        <div class="text-danger small">{{ form.execution_mode.errors.0 }}</div>
+                    {% endif %}
+                </div>
+                <div class="col-md-6 schedule-datetime" style="display:none;">
+                    <label class="form-label">计划执行时间</label>
+                    {{ form.scheduled_for }}
+                    {% if form.scheduled_for.errors %}
+                        <div class="text-danger small">{{ form.scheduled_for.errors.0 }}</div>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="row g-3 mt-1" id="cron-options" style="display:none;">
+                <div class="col-md-6">
+                    <label class="form-label">Cron 表达式</label>
+                    {{ form.cron_expression }}
+                    <div class="form-text">示例：0 * * * *（每小时），0 2 * * *（每日 02:00）</div>
+                    {% if form.cron_expression.errors %}
+                        <div class="text-danger small mt-1">{{ form.cron_expression.errors.0 }}</div>
+                    {% endif %}
+                </div>
+                <div class="col-md-6 d-flex align-items-end">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="run_now" name="run_now">
+                        <label class="form-check-label" for="run_now">创建后立即执行一次</label>
+                    </div>
+                </div>
+            </div>
+            <div class="form-check form-switch mt-3">
+                {{ form.is_enabled }}
+                <label class="form-check-label" for="id_is_enabled">任务启用</label>
+                {% if form.is_enabled.errors %}
+                    <div class="text-danger small mt-1">{{ form.is_enabled.errors.0 }}</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    {% if form.non_field_errors %}
+        <div class="alert alert-danger">
+            {{ form.non_field_errors.0 }}
+        </div>
+    {% endif %}
+
+    <div class="d-flex justify-content-end gap-3">
+        <a href="{% url 'assets:task_list' %}" class="btn btn-light">取消</a>
+        <button type="submit" class="btn btn-primary">
+            <i class="bi bi-check-circle"></i> 保存任务
+        </button>
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const taskTypeInputs = document.querySelectorAll('input[name="task_type"]');
+    const executionModeInputs = document.querySelectorAll('input[name="execution_mode"]');
+    const cronOptions = document.getElementById('cron-options');
+    const oneOffOptions = document.getElementById('one-off-options');
+    const scheduleDatetime = document.querySelector('.schedule-datetime');
+
+    function refreshVisibility() {
+        const selectedType = document.querySelector('input[name="task_type"]:checked')?.value || 'one_off';
+        cronOptions.style.display = selectedType === 'cron' ? 'flex' : 'none';
+        oneOffOptions.style.display = selectedType === 'cron' ? 'none' : 'flex';
+
+        const selectedMode = document.querySelector('input[name="execution_mode"]:checked')?.value || 'immediate';
+        scheduleDatetime.style.display = selectedMode === 'schedule' ? 'block' : 'none';
+    }
+
+    taskTypeInputs.forEach(input => input.addEventListener('change', refreshVisibility));
+    executionModeInputs.forEach(input => input.addEventListener('change', refreshVisibility));
+    document.addEventListener('DOMContentLoaded', refreshVisibility);
+    refreshVisibility();
+</script>
+{% endblock %}

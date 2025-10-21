@@ -1,7 +1,26 @@
 import ipaddress
-from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
-from .models import Server, HardwareInfo, SystemConfig
+from django.db.models import Count, Prefetch, Q
+from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
+from django.utils import timezone
+
+from .forms import ExecutionTaskForm
+from .execution import (
+    calculate_next_run,
+    create_run_for_task,
+    get_task_servers,
+    has_active_run,
+    start_run_async,
+)
+from .models import (
+    ExecutionStage,
+    ExecutionRun,
+    ExecutionTask,
+    HardwareInfo,
+    Server,
+    SystemConfig,
+)
 from .utils import deploy_agent_to_server, test_ssh_connection, update_server_cron
 
 
@@ -398,3 +417,206 @@ def system_settings_view(request):
 
     # 渲染系统设置页面
     return render(request, 'system_settings.html', context)
+
+
+def task_list_view(request):
+    """远程执行任务总览页面。"""
+
+    tasks = ExecutionTask.objects.all()
+
+    status_filter = request.GET.get('status', '').strip()
+    task_type_filter = request.GET.get('type', '').strip()
+    owner_filter = request.GET.get('owner', '').strip()
+
+    if task_type_filter:
+        tasks = tasks.filter(task_type=task_type_filter)
+
+    if status_filter:
+        tasks = tasks.filter(runs__status=status_filter)
+
+    if owner_filter:
+        tasks = tasks.filter(created_by__username__icontains=owner_filter)
+
+    if status_filter or owner_filter:
+        tasks = tasks.distinct()
+
+    tasks = tasks.prefetch_related(
+        'targets__server',
+        Prefetch('runs', queryset=ExecutionRun.objects.select_related('triggered_by').order_by('-created_at')),
+    ).annotate(target_count=Count('targets', distinct=True))
+
+    task_items = []
+    for task in tasks:
+        run_list = list(task.runs.all())
+        latest_run = run_list[0] if run_list else None
+        upcoming_run = next((run for run in run_list if run.status in ('scheduled', 'queued')), None)
+        task_items.append({
+            'task': task,
+            'latest_run': latest_run,
+            'upcoming_run': upcoming_run,
+            'target_count': task.target_count,
+        })
+
+    context = {
+        'task_items': task_items,
+        'status_filter': status_filter,
+        'task_type_filter': task_type_filter,
+        'owner_filter': owner_filter,
+        'status_choices': ExecutionRun.STATUS_CHOICES,
+        'task_type_choices': ExecutionTask.TASK_TYPE_CHOICES,
+    }
+
+    return render(request, 'task_list.html', context)
+
+
+def task_create_view(request):
+    """创建远程执行任务。"""
+
+    if request.method == 'POST':
+        form = ExecutionTaskForm(request.POST)
+        if form.is_valid():
+            task = form.save(commit=False)
+            if request.user.is_authenticated:
+                task.created_by = request.user
+            if task.is_periodic and task.cron_expression:
+                task.next_run_at = calculate_next_run(task.cron_expression)
+            task.save()
+
+            servers = list(form.cleaned_data['servers'])
+            for index, server in enumerate(servers):
+                task.targets.create(server=server, order=index)
+
+            # 需要立即执行的任务
+            if task.task_type == 'one_off' and form.should_start_immediately:
+                try:
+                    run = create_run_for_task(task, triggered_by=request.user, manual=True)
+                except ValueError as exc:
+                    messages.error(request, str(exc))
+                else:
+                    start_run_async(run)
+                    messages.success(request, '任务已创建并开始执行。')
+            elif task.task_type == 'one_off' and form.scheduled_datetime:
+                try:
+                    run = create_run_for_task(
+                        task,
+                        scheduled_for=form.scheduled_datetime,
+                        triggered_by=request.user,
+                        manual=True,
+                    )
+                except ValueError as exc:
+                    messages.error(request, str(exc))
+                else:
+                    task.next_run_at = form.scheduled_datetime
+                    task.save(update_fields=['next_run_at'])
+                    messages.success(request, '任务已创建并安排在指定时间执行。')
+            else:
+                run_now = request.POST.get('run_now') == 'on'
+                if run_now:
+                    try:
+                        run = create_run_for_task(task, triggered_by=request.user, manual=True)
+                    except ValueError as exc:
+                        messages.error(request, str(exc))
+                    else:
+                        start_run_async(run)
+                messages.success(request, '周期任务已创建，可在任务列表中查看。')
+
+            return redirect('assets:task_detail', task_id=task.id)
+        else:
+            messages.error(request, '表单验证失败，请检查输入信息。')
+    else:
+        form = ExecutionTaskForm()
+
+    context = {
+        'form': form,
+        'server_count': Server.objects.count(),
+    }
+    return render(request, 'task_create.html', context)
+
+
+def task_detail_view(request, task_id):
+    """任务详情与执行历史页面。"""
+
+    task = get_object_or_404(
+        ExecutionTask.objects.prefetch_related(
+            'targets__server',
+            Prefetch(
+                'runs',
+                queryset=ExecutionRun.objects.select_related('triggered_by').prefetch_related(
+                    Prefetch('stages', queryset=ExecutionStage.objects.prefetch_related('jobs__server').order_by('order'))
+                ).order_by('-created_at')
+            ),
+        ),
+        id=task_id,
+    )
+
+    runs = list(task.runs.all())
+    selected_run = None
+    selected_run_id = request.GET.get('run')
+    if selected_run_id:
+        selected_run = next((run for run in runs if str(run.id) == selected_run_id), None)
+    if not selected_run and runs:
+        selected_run = runs[0]
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+
+        if action == 'trigger':
+            if has_active_run(task):
+                messages.warning(request, '已存在执行中的任务，请稍后再试。')
+            else:
+                try:
+                    run = create_run_for_task(task, triggered_by=request.user, manual=True)
+                except ValueError as exc:
+                    messages.error(request, str(exc))
+                else:
+                    start_run_async(run)
+                    messages.success(request, '已触发新的执行。')
+            return redirect('assets:task_detail', task_id=task.id)
+
+        if action == 'toggle':
+            task.is_enabled = not task.is_enabled
+            task.save(update_fields=['is_enabled'])
+            status_label = '启用' if task.is_enabled else '停用'
+            messages.success(request, f'任务已{status_label}。')
+            return redirect('assets:task_detail', task_id=task.id)
+
+        if action == 'retry_failed':
+            run_id = request.POST.get('run_id')
+            run = get_object_or_404(ExecutionRun, id=run_id, task=task)
+            failed_servers = []
+            for stage in run.stages.prefetch_related('jobs__server'):
+                for job in stage.jobs.all():
+                    if job.status == 'failed':
+                        failed_servers.append(job.server)
+
+            if not failed_servers:
+                messages.info(request, '没有失败的节点需要重试。')
+            else:
+                try:
+                    new_run = create_run_for_task(task, servers=failed_servers, triggered_by=request.user, manual=True)
+                except ValueError as exc:
+                    messages.error(request, str(exc))
+                else:
+                    start_run_async(new_run)
+                    messages.success(request, f'已为 {len(failed_servers)} 台服务器重新触发执行。')
+            return redirect('assets:task_detail', task_id=task.id)
+
+        if action == 'cancel_run':
+            run_id = request.POST.get('run_id')
+            run = get_object_or_404(ExecutionRun, id=run_id, task=task)
+            if run.status in ['queued', 'scheduled']:
+                run.status = 'cancelled'
+                run.finished_at = timezone.now()
+                run.save(update_fields=['status', 'finished_at'])
+                messages.success(request, '任务已取消。')
+            else:
+                messages.warning(request, '仅能取消排队或计划中的任务。')
+            return redirect('assets:task_detail', task_id=task.id)
+
+    context = {
+        'task': task,
+        'runs': runs,
+        'selected_run': selected_run,
+        'task_servers': get_task_servers(task),
+    }
+    return render(request, 'task_detail.html', context)
