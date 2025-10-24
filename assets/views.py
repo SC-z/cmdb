@@ -28,17 +28,17 @@ def server_list_view(request):
     """
     服务器列表页面视图
 
-    显示所有已添加的服务器列表，支持搜索和状态过滤功能。
-    这是CMDB系统的主页面，提供服务器概览和快速导航。
+    显示所有已添加的服务器列表,支持搜索和状态过滤功能。
+    这是CMDB系统的主页面,提供服务器概览和快速导航。
 
     功能特性：
-    1. 显示所有服务器，按创建时间倒序排列
+    1. 显示所有服务器,按创建时间倒序排列
     2. 支持按序列号、主机名、管理IP进行模糊搜索
     3. 支持按服务器状态进行过滤
     4. 提供服务器详情和删除操作的链接
 
     Args:
-        request: Django的HttpRequest对象，包含GET参数
+        request: Django的HttpRequest对象,包含GET参数
 
     Returns:
         HttpResponse: 渲染后的服务器列表页面
@@ -53,14 +53,14 @@ def server_list_view(request):
     search_query = request.GET.get('search', '').strip()  # 搜索关键词
     status_filter = request.GET.get('status', '').strip() # 状态过滤器
 
-    # 获取所有服务器，按创建时间倒序排列
-    servers = Server.objects.all().order_by('-created_at')
+    # 获取所有服务器,按创建时间倒序排列,并预加载硬件信息
+    servers = Server.objects.select_related('hardware').order_by('-created_at')
 
     # ==================== 搜索过滤逻辑 ====================
 
-    # 如果有搜索关键词，在多个字段中进行模糊匹配
+    # 如果有搜索关键词,在多个字段中进行模糊匹配
     if search_query:
-        # 使用Q对象实现OR查询，搜索序列号、主机名或管理IP
+        # 使用Q对象实现OR查询,搜索序列号、主机名或管理IP
         from django.db.models import Q
         servers = servers.filter(
             Q(sn__icontains=search_query) |  # 序列号包含关键词
@@ -68,41 +68,57 @@ def server_list_view(request):
             Q(management_ip__icontains=search_query)  # 管理IP包含关键词
         )
 
-    # 如果选择了状态过滤器，按状态过滤
+    # 如果选择了状态过滤器,按状态过滤
     if status_filter:
         servers = servers.filter(status=status_filter)
+
+    # ==================== 硬件信息整理 ====================
+
+    server_list = []
+    for server in servers:
+        hardware = getattr(server, "hardware", None)
+        cpu_info = hardware.cpu_info if hardware and isinstance(hardware.cpu_info, dict) else {}
+        logical_cores = cpu_info.get("logical_cores")
+        architecture = cpu_info.get("architecture")
+        memory_total = hardware.memory_total_gb if hardware else None
+
+        server.display_cpu_logical = logical_cores if logical_cores is not None else "--"
+        server.display_cpu_arch = architecture or "--"
+        server.display_memory_total = f"{memory_total} GB" if memory_total is not None else "--"
+
+        server_list.append(server)
 
     # ==================== 上下文准备 ====================
 
     # 准备模板上下文变量
     context = {
-        'servers': servers,  # 过滤后的服务器列表
-        'search_query': search_query,  # 搜索关键词（用于保持搜索框内容）
-        'status_filter': status_filter,  # 状态过滤器（用于保持下拉框选择）
+        "servers": server_list,  # 过滤后的服务器列表
+        "search_query": search_query,  # 搜索关键词（用于保持搜索框内容）
+        "status_filter": status_filter,  # 状态过滤器（用于保持下拉框选择）
     }
 
     # 渲染模板并返回响应
-    return render(request, 'server_list.html', context)
+    return render(request, "server_list.html", context)
 
 
 def add_server_view(request):
     """
     添加服务器页面视图
 
-    处理新服务器的添加流程，包括：
+    处理新服务器的添加流程,包括：
     1. 表单数据验证
     2. IP地址格式检查
     3. SSH连接测试
     4. 服务器记录创建
     5. Agent自动部署
 
-    这是一个完整的表单处理流程，展示了Django视图的最佳实践。
+    这是一个完整的表单处理流程,展示了Django视图的最佳实践。
 
     Args:
         request: Django的HttpRequest对象
 
     Returns:
-        HttpResponse: GET请求返回添加表单页面，POST请求处理完成后重定向
+        HttpResponse: GET请求返回添加表单页面,POST请求处理完成后重定向
 
     模板: add_server.html
 
@@ -110,7 +126,7 @@ def add_server_view(request):
         - management_ip: 管理IP地址（必填）
         - ssh_username: SSH用户名（必填）
         - ssh_password: SSH密码（必填）
-        - ssh_port: SSH端口（可选，默认22）
+        - ssh_port: SSH端口（可选,默认22）
         - hostname: 主机名（可选）
     """
     # ==================== POST请求处理 ====================
@@ -126,7 +142,7 @@ def add_server_view(request):
         # ==================== 数据验证阶段 ====================
 
         # 1. 必填字段验证
-        # 确保关键信息都已填写，这是创建服务器的最低要求
+        # 确保关键信息都已填写,这是创建服务器的最低要求
         if not all([management_ip, ssh_username, ssh_password]):
             messages.error(
                 request,
@@ -141,7 +157,7 @@ def add_server_view(request):
         except ValueError:
             messages.error(
                 request,
-                f'IP地址格式错误: {management_ip}，请输入正确的IPv4或IPv6地址'
+                f'IP地址格式错误: {management_ip},请输入正确的IPv4或IPv6地址'
             )
             return render(request, 'add_server.html')
 
@@ -154,7 +170,7 @@ def add_server_view(request):
         except ValueError:
             messages.error(
                 request,
-                f'SSH端口号错误: {ssh_port}，请输入1-65535之间的数字'
+                f'SSH端口号错误: {ssh_port},请输入1-65535之间的数字'
             )
             return render(request, 'add_server.html')
 
@@ -163,7 +179,7 @@ def add_server_view(request):
         if Server.objects.filter(management_ip=management_ip).exists():
             messages.error(
                 request,
-                f'IP地址 {management_ip} 已存在，请勿重复添加'
+                f'IP地址 {management_ip} 已存在,请勿重复添加'
             )
             return render(request, 'add_server.html')
 
@@ -183,21 +199,21 @@ def add_server_view(request):
             ssh_password
         )
 
-        # 如果SSH连接失败，显示错误信息但不创建记录
+        # 如果SSH连接失败,显示错误信息但不创建记录
         if not ssh_success:
             messages.error(
                 request,
-                f'SSH连接失败: {ssh_message}，服务器未添加到数据库'
+                f'SSH连接失败: {ssh_message},服务器未添加到数据库'
             )
             return render(request, 'add_server.html')
 
         # ==================== 数据库记录创建阶段 ====================
 
-        # 6. SSH测试成功，创建服务器记录
+        # 6. SSH测试成功,创建服务器记录
         try:
             # 创建服务器对象
             server = Server.objects.create(
-                sn=f'TEMP-{management_ip}',  # 临时序列号，等待Agent上报真实SN
+                sn=f'TEMP-{management_ip}',  # 临时序列号,等待Agent上报真实SN
                 hostname=hostname,
                 management_ip=management_ip,
                 ssh_username=ssh_username,
@@ -214,7 +230,7 @@ def add_server_view(request):
             # 7. 自动部署数据采集Agent
             messages.info(
                 request,
-                f'SSH连接成功，正在部署Agent...'
+                f'SSH连接成功,正在部署Agent...'
             )
 
             deploy_success, deploy_message = deploy_agent_to_server(server)
@@ -223,15 +239,15 @@ def add_server_view(request):
             if deploy_success:
                 messages.success(
                     request,
-                    f'✓ 服务器 {management_ip} 添加成功，Agent部署成功！'
+                    f'✓ 服务器 {management_ip} 添加成功,Agent部署成功！'
                 )
             else:
                 messages.warning(
                     request,
-                    f'⚠ 服务器 {management_ip} 已添加，但Agent部署失败: {deploy_message}'
+                    f'⚠ 服务器 {management_ip} 已添加,但Agent部署失败: {deploy_message}'
                 )
 
-            # 操作完成，重定向到服务器列表页面
+            # 操作完成,重定向到服务器列表页面
             return redirect('assets:server_list')
 
         except Exception as e:
@@ -244,7 +260,7 @@ def add_server_view(request):
 
     # ==================== GET请求处理 ====================
 
-    # 如果是GET请求，直接显示添加服务器表单页面
+    # 如果是GET请求,直接显示添加服务器表单页面
     return render(request, 'add_server.html')
 
 
@@ -252,7 +268,7 @@ def server_detail_view(request, server_id):
     """
     服务器详情页面视图
 
-    显示指定服务器的详细信息，包括：
+    显示指定服务器的详细信息,包括：
     1. 服务器基本信息
     2. 硬件配置信息
     3. Agent部署状态
@@ -270,12 +286,12 @@ def server_detail_view(request, server_id):
         - server: 服务器对象实例
     """
     # 使用get_object_or_404获取服务器对象
-    # 如果服务器不存在，会自动返回404错误页面
+    # 如果服务器不存在,会自动返回404错误页面
     server = get_object_or_404(Server, id=server_id)
 
     # 准备模板上下文
     context = {
-        'server': server,  # 服务器对象，包含基本信息和关联的硬件信息
+        'server': server,  # 服务器对象,包含基本信息和关联的硬件信息
     }
 
     # 渲染详情页面
@@ -286,7 +302,7 @@ def delete_server_view(request, server_id):
     """
     删除服务器视图
 
-    处理服务器删除操作，采用POST方法防止CSRF攻击。
+    处理服务器删除操作,采用POST方法防止CSRF攻击。
     删除服务器时会同时删除相关的硬件信息记录（级联删除）。
 
     Args:
@@ -297,7 +313,7 @@ def delete_server_view(request, server_id):
         HttpResponseRedirect: 重定向到服务器列表页面
 
     安全考虑：
-    - 只接受POST请求，防止意外删除
+    - 只接受POST请求,防止意外删除
     - 使用事务确保数据一致性
     - 级联删除相关的硬件信息
     """
@@ -321,7 +337,7 @@ def system_settings_view(request):
     """
     系统设置页面视图
 
-    管理CMDB系统的全局配置，包括：
+    管理CMDB系统的全局配置,包括：
     1. IP白名单配置（控制Agent脚本访问权限）
     2. 定时任务Cron表达式配置
     3. 批量更新服务器定时任务
@@ -390,16 +406,16 @@ def system_settings_view(request):
                         fail_count += 1
 
                 except Exception as e:
-                    # 异常处理，记录失败数量
+                    # 异常处理,记录失败数量
                     fail_count += 1
 
             # 显示批量更新结果
             messages.success(
                 request,
-                f'定时任务更新完成：成功 {success_count} 台，失败 {fail_count} 台'
+                f'定时任务更新完成：成功 {success_count} 台,失败 {fail_count} 台'
             )
 
-        # 操作完成后重定向，防止表单重复提交
+        # 操作完成后重定向,防止表单重复提交
         return redirect('assets:system_settings')
 
     # ==================== GET请求处理 ====================
@@ -518,11 +534,11 @@ def task_create_view(request):
                         messages.error(request, str(exc))
                     else:
                         start_run_async(run)
-                messages.success(request, '周期任务已创建，可在任务列表中查看。')
+                messages.success(request, '周期任务已创建,可在任务列表中查看。')
 
             return redirect('assets:task_detail', task_id=task.id)
         else:
-            messages.error(request, '表单验证失败，请检查输入信息。')
+            messages.error(request, '表单验证失败,请检查输入信息。')
     else:
         form = ExecutionTaskForm()
 
@@ -562,7 +578,7 @@ def task_detail_view(request, task_id):
 
         if action == 'trigger':
             if has_active_run(task):
-                messages.warning(request, '已存在执行中的任务，请稍后再试。')
+                messages.warning(request, '已存在执行中的任务,请稍后再试。')
             else:
                 try:
                     run = create_run_for_task(task, triggered_by=request.user, manual=True)
@@ -623,7 +639,7 @@ def task_detail_view(request, task_id):
 
 
 def task_delete_view(request, task_id):
-    """删除远程执行任务，支持级联清理相关记录。"""
+    """删除远程执行任务,支持级联清理相关记录。"""
 
     task = get_object_or_404(ExecutionTask, id=task_id)
 

@@ -37,6 +37,17 @@ class ExecutionTaskForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        for name, field in self.fields.items():
+            widget = field.widget
+            if isinstance(widget, (forms.RadioSelect, forms.CheckboxSelectMultiple, forms.CheckboxInput)):
+                continue
+            existing = widget.attrs.get("class", "")
+            base_class = "form-select" if isinstance(widget, forms.Select) else "form-control"
+            classes = set(existing.split()) if existing else set()
+            classes.add(base_class)
+            widget.attrs["class"] = " ".join(sorted(classes))
+
         self.fields['servers'].queryset = Server.objects.all()
         self.should_start_immediately = False
         self.scheduled_datetime = None

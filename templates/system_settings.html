@@ -9,7 +9,7 @@
             <i class="bi bi-sliders"></i>
             <span>系统设置</span>
         </div>
-        <p class="subtle-text mt-2 mb-0">简化白名单与采集计划配置，保持 Agent 行为一致。</p>
+        <p class="subtle-text mt-2 mb-0">简化白名单与采集计划配置,保持 Agent 行为一致。</p>
     </div>
 </div>
 
@@ -52,14 +52,14 @@
                     <div class="mb-4">
                         <label class="form-label">IP 白名单</label>
                         <textarea class="form-control font-monospace" name="allowed_networks" rows="6" placeholder="10.10.90.0/24&#10;192.168.1.100">{{ config.allowed_networks }}</textarea>
-                        <div class="form-text">每行一个 IP 或 CIDR，支持使用 # 注释。</div>
+                        <div class="form-text">每行一个 IP 或 CIDR,支持使用 # 注释。</div>
                     </div>
 
                     <div class="row g-3 align-items-end">
                         <div class="col-md-6">
                             <label class="form-label">Cron 定时表达式</label>
                             <input type="text" class="form-control font-monospace" name="cron_expression" value="{{ config.cron_expression }}" required>
-                            <div class="form-text">示例：0 * * * * 或 */30 * * * *</div>
+                            <!-- <div class="form-text">示例：0 * * * * 或 */30 * * * *</div> -->
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">任务说明（可选）</label>
@@ -103,15 +103,15 @@
                 <ul class="list-unstyled mb-0 small text-muted d-grid gap-3">
                     <li class="d-flex gap-3">
                         <i class="bi bi-shield-check text-primary fs-5"></i>
-                        <span>白名单更新后立即生效。建议保持列表精简，方便审计与追踪。</span>
+                        <span>白名单更新后立即生效。建议保持列表精简,方便审计与追踪。</span>
                     </li>
                     <li class="d-flex gap-3">
                         <i class="bi bi-clock-history text-primary fs-5"></i>
-                        <span>推送定时任务前先在单台主机验证 Cron 表达式，确保采集节奏正确。</span>
+                        <span>推送定时任务前先在单台主机验证 Cron 表达式,确保采集节奏正确。</span>
                     </li>
                     <li class="d-flex gap-3">
                         <i class="bi bi-hdd-network text-primary fs-5"></i>
-                        <span>新加入的服务器会自动继承当前定时配置与 Agent 版本，无需额外操作。</span>
+                        <span>新加入的服务器会自动继承当前定时配置与 Agent 版本,无需额外操作。</span>
                     </li>
                 </ul>
             </div>

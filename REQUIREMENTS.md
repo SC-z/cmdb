@@ -27,7 +27,7 @@
 
 ### 1.1 项目定位
 
-CMDB（Configuration Management Database）是一个轻量级的服务器资产管理和生命周期跟踪系统，专为公司内网环境设计。
+CMDB（Configuration Management Database）是一个轻量级的服务器资产管理和生命周期跟踪系统,专为公司内网环境设计。
 
 **核心特点**：
 - 基于Django的Web应用
@@ -84,7 +84,7 @@ CMDB（Configuration Management Database）是一个轻量级的服务器资产�
 
 #### 2.1.2 服务器列表
 - **显示字段**:
-  - SN（序列号，唯一标识）
+  - SN（序列号,唯一标识）
   - 主机名
   - 管理IP
   - 状态（在线/离线）
@@ -143,13 +143,13 @@ CMDB（Configuration Management Database）是一个轻量级的服务器资产�
 - 说明: 获取默认路由的IP地址
 - 场景: 服务器可能有多网卡
 - 方法: 解析默认路由接口的IP
-- 要求: 必须准确，不能为空
-- 兜底: 如果无法获取默认路由IP，使用hostname -I的第一个IP
+- 要求: 必须准确,不能为空
+- 兜底: 如果无法获取默认路由IP,使用hostname -I的第一个IP
 
 **服务器SN**:
-- 说明: 服务器序列号，作为唯一标识
+- 说明: 服务器序列号,作为唯一标识
 - 方法: dmidecode -s system-serial-number
-- 要求: 必须唯一，不能为空
+- 要求: 必须唯一,不能为空
 - 兜底策略:
   1. dmidecode获取物理机SN
   2. /sys/class/dmi/id/product_serial（虚拟机）
@@ -158,7 +158,7 @@ CMDB（Configuration Management Database）是一个轻量级的服务器资产�
 
 #### 2.3.2 尽力采集（优先级P1）
 
-**如果采集失败，使用"Unknown"**:
+**如果采集失败,使用"Unknown"**:
 
 - **主机名**: hostname命令
 - **CPU信息**:
@@ -212,8 +212,8 @@ CMDB（Configuration Management Database）是一个轻量级的服务器资产�
 - Django管理命令: `python manage.py cleanup_servers`
 - 参数:
   - `--days N`: 清理N天未上报的服务器（默认14）
-  - `--dry-run`: 预览模式，不实际删除
-  - `--force`: 强制删除，不需要确认
+  - `--dry-run`: 预览模式,不实际删除
+  - `--force`: 强制删除,不需要确认
 - Crontab定时: 每天凌晨3点自动执行
 
 #### 2.5.3 安全措施
@@ -235,7 +235,7 @@ CMDB（Configuration Management Database）是一个轻量级的服务器资产�
 | id | BigAutoField | PRIMARY KEY | 主键 |
 | sn | CharField(100) | UNIQUE, INDEX | 序列号（唯一标识） |
 | hostname | CharField(100) | - | 主机名 |
-| management_ip | GenericIPAddressField | - | 管理IP（可变，不唯一） |
+| management_ip | GenericIPAddressField | - | 管理IP（可变,不唯一） |
 | status | CharField(20) | - | 状态（online/offline） |
 | ssh_username | CharField(50) | - | SSH用户名 |
 | ssh_password | CharField(200) | - | SSH密码（简单加密） |
@@ -252,11 +252,11 @@ CMDB（Configuration Management Database）是一个轻量级的服务器资产�
 - INDEX: created_at, last_report_time
 
 #### 关键设计
-1. **SN为唯一标识**: 数据库唯一约束，用于判断同一台服务器
-2. **IP可变**: 不加唯一约束，允许服务器IP变化
+1. **SN为唯一标识**: 数据库唯一约束,用于判断同一台服务器
+2. **IP可变**: 不加唯一约束,允许服务器IP变化
 3. **密码加密**: SSH密码使用Base64简单编码（内网环境）
 4. **时间戳**:
-   - created_at: 首次发现时间，不变
+   - created_at: 首次发现时间,不变
    - updated_at: 任何字段更新时间
    - last_report_time: Agent最后上报时间
 
@@ -281,13 +281,13 @@ CMDB（Configuration Management Database）是一个轻量级的服务器资产�
 
 #### 关系设计
 - OneToOne关系: server -> HardwareInfo
-- 级联删除: Server删除时，HardwareInfo自动删除
+- 级联删除: Server删除时,HardwareInfo自动删除
 - related_name: 'hardware'
 
 #### 简化设计说明
-- 采用单表设计，不分拆CPU/Memory/Disk多表
+- 采用单表设计,不分拆CPU/Memory/Disk多表
 - 详细信息存储在raw_data的JSON字段
-- 满足快速查看需求，简化查询逻辑
+- 满足快速查看需求,简化查询逻辑
 
 ### 3.3 数据关系图
 
@@ -304,7 +304,7 @@ Server (1) ←→ (1) HardwareInfo
 ### 4.1 Agent架构
 
 #### 4.1.1 设计原则
-- 独立运行: 单个Python脚本，无外部依赖
+- 独立运行: 单个Python脚本,无外部依赖
 - 轻量级: 脚本大小 < 10KB
 - 健壮性: 采集失败不影响其他项
 - 兼容性: 支持主流Linux发行版
@@ -414,7 +414,7 @@ uname -m
 # 总大小（GB）
 grep MemTotal /proc/meminfo | awk '{print int($2/1024/1024)}'
 
-# 条数（可选，需要dmidecode）
+# 条数（可选,需要dmidecode）
 dmidecode -t memory | grep "Size:" | grep -v "No Module" | wc -l
 ```
 
@@ -498,7 +498,7 @@ Content-Type: application/json
 
 #### 5.1.1 核心规则
 - **唯一标识**: SN（序列号）
-- **判断逻辑**: 通过SN查找服务器，存在则更新，不存在则创建
+- **判断逻辑**: 通过SN查找服务器,存在则更新,不存在则创建
 
 #### 5.1.2 SN唯一性保证
 - 数据库层: UNIQUE约束
@@ -538,7 +538,7 @@ Content-Type: application/json
 
 处理:
 1. 通过SN=GHI789找到现有记录
-2. IP未变化，不记录日志
+2. IP未变化,不记录日志
 3. 更新硬件信息
 4. 更新last_report_time
 ```
@@ -555,14 +555,14 @@ Content-Type: application/json
 # 伪代码
 try:
     server = Server.objects.get(sn=agent_sn)
-    # 服务器已存在，更新
+    # 服务器已存在,更新
     server.management_ip = agent_ip
     server.hostname = agent_hostname
     server.status = 'online'
     server.last_report_time = now()
     server.save()
 except Server.DoesNotExist:
-    # 新服务器，创建
+    # 新服务器,创建
     server = Server.objects.create(
         sn=agent_sn,
         management_ip=agent_ip,
@@ -581,10 +581,10 @@ except Server.DoesNotExist:
 
 #### 5.4.1 清理条件（OR关系）
 ```python
-# 条件1: 有上报记录，但超过14天
+# 条件1: 有上报记录,但超过14天
 last_report_time < (now - 14 days)
 
-# 条件2: 从未上报，且创建超过14天
+# 条件2: 从未上报,且创建超过14天
 last_report_time IS NULL AND created_at < (now - 14 days)
 ```
 
@@ -648,8 +648,8 @@ Content-Type: application/json
 #### 6.1.2 请求参数
 ```json
 {
-  "sn": "ABC123456789",           // 必填，服务器SN
-  "management_ip": "192.168.1.100", // 必填，管理IP
+  "sn": "ABC123456789",           // 必填,服务器SN
+  "management_ip": "192.168.1.100", // 必填,管理IP
   "hostname": "web-server-01",     // 选填
   "hardware_info": {               // 选填
     "cpu_model": "Intel Xeon",
@@ -805,8 +805,8 @@ GET /api/servers/{server_id}/
 #### 7.3.1 表单字段
 - 管理IP（必填）
 - SSH用户名（必填）
-- SSH密码（必填，密码输入框）
-- SSH端口（选填，默认22）
+- SSH密码（必填,密码输入框）
+- SSH端口（选填,默认22）
 - 主机名（选填）
 
 #### 7.3.2 功能
@@ -920,8 +920,8 @@ cmdb/
 ### 8.2 核心文件说明
 
 #### 8.2.1 配置文件
-- **settings.py**: Django配置，数据库、应用、静态文件等
-- **urls.py**: URL路由，连接Web和API
+- **settings.py**: Django配置,数据库、应用、静态文件等
+- **urls.py**: URL路由,连接Web和API
 - **requirements.txt**: Python依赖包
 
 #### 8.2.2 数据模型
@@ -937,7 +937,7 @@ cmdb/
 - **static/**: CSS、JS、图片
 
 #### 8.2.5 Agent
-- **agent.py**: Agent模板脚本，部署到目标服务器
+- **agent.py**: Agent模板脚本,部署到目标服务器
 
 #### 8.2.6 管理命令
 - **check_servers.py**: 检查服务器状态
@@ -983,7 +983,7 @@ djangorestframework==3.14.0
 paramiko==3.3.1
 ```
 
-**说明**: 只包含核心依赖，无冗余包
+**说明**: 只包含核心依赖,无冗余包
 
 ---
 
@@ -1247,7 +1247,7 @@ python manage.py runserver 0.0.0.0:8000
 ### 12.1 认证和授权
 
 #### 12.1.1 MVP阶段
-- 内网信任环境，暂不实现用户认证
+- 内网信任环境,暂不实现用户认证
 - Django Admin使用默认认证
 
 #### 12.1.2 未来增强
@@ -1269,7 +1269,7 @@ python manage.py runserver 0.0.0.0:8000
 ### 12.3 网络安全
 
 #### 12.3.1 当前方案
-- 内网部署，防火墙保护
+- 内网部署,防火墙保护
 - HTTP协议（内网）
 
 #### 12.3.2 未来增强
@@ -1296,11 +1296,11 @@ python manage.py runserver 0.0.0.0:8000
 
 | 术语 | 说明 |
 |------|------|
-| CMDB | Configuration Management Database，配置管理数据库 |
-| SN | Serial Number，序列号 |
+| CMDB | Configuration Management Database,配置管理数据库 |
+| SN | Serial Number,序列号 |
 | Agent | 部署在被管理服务器上的采集脚本 |
-| MVP | Minimum Viable Product，最小可行产品 |
-| SSH | Secure Shell，安全外壳协议 |
+| MVP | Minimum Viable Product,最小可行产品 |
+| SSH | Secure Shell,安全外壳协议 |
 | IPMI | Intelligent Platform Management Interface |
 | Crontab | Unix/Linux定时任务 |
 
@@ -1314,25 +1314,25 @@ python manage.py runserver 0.0.0.0:8000
 ### C. 常见问题
 
 #### Q1: Agent采集SN失败怎么办？
-A: Agent会尝试多种方法（dmidecode、sysfs、UUID、MAC），确保能获取到唯一标识。
+A: Agent会尝试多种方法（dmidecode、sysfs、UUID、MAC）,确保能获取到唯一标识。
 
 #### Q2: 服务器IP变化后会创建新记录吗？
-A: 不会。系统通过SN判断同一台服务器，IP变化只会更新现有记录。
+A: 不会。系统通过SN判断同一台服务器,IP变化只会更新现有记录。
 
 #### Q3: 如何手动清理某台服务器？
-A: 可以在Admin后台直接删除，或使用cleanup_servers命令。
+A: 可以在Admin后台直接删除,或使用cleanup_servers命令。
 
 #### Q4: Agent采集频率可以调整吗？
-A: 可以，修改crontab的定时配置即可。
+A: 可以,修改crontab的定时配置即可。
 
 #### Q5: 支持虚拟机和容器吗？
-A: 支持虚拟机，容器需要额外配置（取容器内IP）。
+A: 支持虚拟机,容器需要额外配置（取容器内IP）。
 
 ### D. 更新日志
 
 | 版本 | 日期 | 说明 |
 |------|------|------|
-| 1.0 | 2025-10-09 | 初始版本，MVP需求 |
+| 1.0 | 2025-10-09 | 初始版本,MVP需求 |
 
 ---
 

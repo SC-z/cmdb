@@ -1,19 +1,19 @@
 """
 工具函数模块：SSH连接和Agent部署
 
-这个模块包含了CMDB系统的核心工具函数，主要负责：
+这个模块包含了CMDB系统的核心工具函数,主要负责：
 1. SSH连接管理和测试
 2. Agent自动部署到目标服务器
 3. 定时任务（Cron）的生成和更新
 4. 网络工具函数
 
 使用的技术栈：
-- paramiko: Python SSH库，用于远程连接和命令执行
-- contextlib: 上下文管理器，确保资源正确释放
-- socket: 网络套接字编程，用于获取本机IP
+- paramiko: Python SSH库,用于远程连接和命令执行
+- contextlib: 上下文管理器,确保资源正确释放
+- socket: 网络套接字编程,用于获取本机IP
 
 安全考虑：
-- SSH密码通过Base64编码存储（非加密，仅基础保护）
+- SSH密码通过Base64编码存储（非加密,仅基础保护）
 - 使用contextmanager确保SSH连接正确关闭
 - 设置合理的连接超时时间
 - 异常处理避免敏感信息泄露
@@ -31,33 +31,33 @@ def get_local_ip():
     获取本机IP地址
 
     用于生成Agent脚本中的CMDB服务器URL。
-    通过连接外部服务器（8.8.8.8）来获取本机的网络接口IP，
+    通过连接外部服务器（8.8.8.8）来获取本机的网络接口IP,
     而不是返回127.0.0.1。
 
     工作原理：
     1. 创建UDP套接字
-    2. 连接到外部地址（8.8.8.8:80，Google DNS）
+    2. 连接到外部地址（8.8.8.8:80,Google DNS）
     3. 获取套接字的本地地址
     4. 关闭套接字并返回IP
 
     Returns:
-        str: 本机的网络IP地址，如果获取失败则返回'127.0.0.1'
+        str: 本机的网络IP地址,如果获取失败则返回'127.0.0.1'
 
     使用场景：
         - 生成Agent脚本中的CMDB服务器URL
         - SSH连接测试时作为服务器地址
 
     注意事项：
-        - 不实际发送数据，仅用于获取本地接口信息
-        - 8.8.8.8是公共DNS服务器，连接稳定可靠
-        - 如果网络异常，返回本地回环地址作为fallback
+        - 不实际发送数据,仅用于获取本地接口信息
+        - 8.8.8.8是公共DNS服务器,连接稳定可靠
+        - 如果网络异常,返回本地回环地址作为fallback
     """
     try:
         # 创建UDP套接字（UDP无需建立完整连接）
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
         # 连接到Google DNS服务器（仅用于获取本地接口地址）
-        # 这里不会实际发送数据，只是设置套接字的本地接口
+        # 这里不会实际发送数据,只是设置套接字的本地接口
         s.connect(('8.8.8.8', 80))
 
         # 获取套接字绑定的本地IP地址
@@ -68,7 +68,7 @@ def get_local_ip():
         return ip
 
     except Exception:
-        # 如果获取失败（如网络异常），返回本地回环地址
+        # 如果获取失败（如网络异常）,返回本地回环地址
         return '127.0.0.1'
 
 
@@ -77,7 +77,7 @@ def generate_cron_content(cron_expression, cmdb_server_url, comment="Auto-genera
     生成Cron定时任务文件内容
 
     创建用于定时执行Agent的Cron配置文件内容。
-    采用远程执行模式，通过curl下载脚本并通过管道执行。
+    采用远程执行模式,通过curl下载脚本并通过管道执行。
 
     Cron格式说明：
         分 时 日 月 周 用户 命令
@@ -90,12 +90,12 @@ def generate_cron_content(cron_expression, cmdb_server_url, comment="Auto-genera
         4. 错误输出也重定向到日志文件
 
     Args:
-        cron_expression (str): Cron表达式，如"0 * * * *"
+        cron_expression (str): Cron表达式,如"0 * * * *"
         cmdb_server_url (str): CMDB服务器的基础URL
         comment (str, optional): Cron文件的注释说明
 
     Returns:
-        str: 完整的Cron文件内容，可直接写入/etc/cron.d/
+        str: 完整的Cron文件内容,可直接写入/etc/cron.d/
 
     生成的文件示例：
         # CMDB Agent Cron Job
@@ -125,8 +125,8 @@ def ssh_connection(server, timeout=30):
     """
     SSH连接上下文管理器
 
-    这是一个安全的SSH连接管理器，使用Python的contextmanager装饰器实现。
-    确保SSH连接在使用完毕后正确关闭，避免资源泄露。
+    这是一个安全的SSH连接管理器,使用Python的contextmanager装饰器实现。
+    确保SSH连接在使用完毕后正确关闭,避免资源泄露。
 
     工作流程：
     1. 创建SSH客户端对象
@@ -136,8 +136,8 @@ def ssh_connection(server, timeout=30):
     5. 在finally块中关闭连接
 
     Args:
-        server (Server): Server模型实例，包含连接信息
-        timeout (int, optional): 连接超时时间（秒），默认30秒
+        server (Server): Server模型实例,包含连接信息
+        timeout (int, optional): 连接超时时间（秒）,默认30秒
 
     Yields:
         paramiko.SSHClient: 已连接的SSH客户端对象
@@ -148,7 +148,7 @@ def ssh_connection(server, timeout=30):
             result = stdout.read().decode()
 
     安全考虑：
-        - AutoAddPolicy会自动接受新主机密钥，生产环境应考虑更安全的策略
+        - AutoAddPolicy会自动接受新主机密钥,生产环境应考虑更安全的策略
         - 密码从Server模型中获取并自动解码
         - 确保连接在异常情况下也能正确关闭
 
@@ -160,8 +160,8 @@ def ssh_connection(server, timeout=30):
     ssh = paramiko.SSHClient()
 
     # 设置主机密钥策略
-    # AutoAddPolicy自动接受新主机密钥，适合开发环境
-    # 生产环境应考虑使用更安全的策略，如LoadKnownHostsKeys
+    # AutoAddPolicy自动接受新主机密钥,适合开发环境
+    # 生产环境应考虑使用更安全的策略,如LoadKnownHostsKeys
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
     try:
@@ -178,7 +178,7 @@ def ssh_connection(server, timeout=30):
         yield ssh
 
     finally:
-        # 无论是否发生异常，都确保关闭SSH连接
+        # 无论是否发生异常,都确保关闭SSH连接
         ssh.close()
 
 
@@ -186,8 +186,8 @@ def deploy_agent_to_server(server):
     """
     通过SSH部署Agent到目标服务器
 
-    这是CMDB系统的核心部署功能，自动在目标服务器上配置和部署数据采集Agent。
-    采用远程执行模式，无需在目标服务器上预先存放文件。
+    这是CMDB系统的核心部署功能,自动在目标服务器上配置和部署数据采集Agent。
+    采用远程执行模式,无需在目标服务器上预先存放文件。
 
     部署流程：
     1. 建立SSH连接
@@ -198,7 +198,7 @@ def deploy_agent_to_server(server):
     6. 更新服务器状态
 
     远程执行模式的优势：
-    - 无需文件传输，减少网络开销
+    - 无需文件传输,减少网络开销
     - 始终使用最新版本的Agent脚本
     - 便于集中管理和更新
 
@@ -209,7 +209,7 @@ def deploy_agent_to_server(server):
         tuple[bool, str]: (是否成功, 消息内容)
 
             成功示例： (True, 'Agent部署成功（远程执行模式）')
-            失败示例： (False, 'Python3未安装，请先安装Python3')
+            失败示例： (False, 'Python3未安装,请先安装Python3')
 
     环境要求：
         - Python 3.x
@@ -233,14 +233,14 @@ def deploy_agent_to_server(server):
             stdin, stdout, stderr = ssh.exec_command('which python3')
             python3_path = stdout.read().decode().strip()
             if not python3_path:
-                return False, 'Python3未安装，请先安装Python3'
+                return False, 'Python3未安装,请先安装Python3'
 
             # 2. 检查curl命令
             # curl用于从CMDB服务器下载Agent脚本
             stdin, stdout, stderr = ssh.exec_command('which curl')
             curl_path = stdout.read().decode().strip()
             if not curl_path:
-                return False, 'curl未安装，请先安装curl'
+                return False, 'curl未安装,请先安装curl'
 
             # ==================== 配置生成阶段 ====================
 
@@ -269,13 +269,13 @@ def deploy_agent_to_server(server):
             # 等待命令执行完成
             stdout.read()
 
-            # 设置cron文件权限（644：所有者读写，组和其他用户只读）
+            # 设置cron文件权限（644：所有者读写,组和其他用户只读）
             ssh.exec_command('sudo chmod 644 /etc/cron.d/cmdb_agent')
 
             # ==================== 立即执行阶段 ====================
 
-            # 5. 立即执行一次数据采集，验证部署是否成功
-            # 这样可以立即看到效果，无需等待下次定时执行
+            # 5. 立即执行一次数据采集,验证部署是否成功
+            # 这样可以立即看到效果,无需等待下次定时执行
             immediate_exec_command = (
                 f'curl -s {cmdb_server_url}/api/agent/script/ | '
                 f'python3 - --server {cmdb_server_url}'
@@ -284,7 +284,7 @@ def deploy_agent_to_server(server):
 
         # ==================== 状态更新阶段 ====================
 
-        # 6. 更新服务器状态，标记Agent已部署
+        # 6. 更新服务器状态,标记Agent已部署
         server.agent_deployed = True
         server.agent_version = '2.0'  # 标记Agent版本
         server.save()
@@ -294,11 +294,11 @@ def deploy_agent_to_server(server):
     # ==================== 异常处理 ====================
 
     except paramiko.AuthenticationException:
-        # SSH认证失败，通常是用户名或密码错误
-        return False, 'SSH认证失败，请检查用户名和密码'
+        # SSH认证失败,通常是用户名或密码错误
+        return False, 'SSH认证失败,请检查用户名和密码'
 
     except paramiko.SSHException as e:
-        # SSH连接相关错误，可能是网络问题或SSH服务异常
+        # SSH连接相关错误,可能是网络问题或SSH服务异常
         return False, f'SSH连接错误: {str(e)}'
 
     except Exception as e:
@@ -310,8 +310,8 @@ def update_server_cron(server, cron_expression):
     """
     更新单台服务器的Cron定时任务
 
-    用于批量更新所有服务器的定时任务频率，例如从每小时改为每30分钟。
-    只更新cron表达式，不重新部署整个Agent。
+    用于批量更新所有服务器的定时任务频率,例如从每小时改为每30分钟。
+    只更新cron表达式,不重新部署整个Agent。
 
     更新流程：
     1. 建立SSH连接
@@ -324,7 +324,7 @@ def update_server_cron(server, cron_expression):
         cron_expression (str): 新的Cron表达式
 
     Returns:
-        bool: 更新成功返回True，失败返回False
+        bool: 更新成功返回True,失败返回False
 
     使用场景：
         - 系统管理员调整数据采集频率
@@ -332,12 +332,12 @@ def update_server_cron(server, cron_expression):
         - 批量更新所有服务器的定时任务
 
     注意事项：
-        - 使用较短的超时时间（10秒），因为只是简单的文件操作
-        - 不更新Agent版本，只修改执行频率
-        - 异常时返回False，不抛出异常（便于批量处理）
+        - 使用较短的超时时间（10秒）,因为只是简单的文件操作
+        - 不更新Agent版本,只修改执行频率
+        - 异常时返回False,不抛出异常（便于批量处理）
     """
     try:
-        # 使用较短的超时时间，因为只是文件操作
+        # 使用较短的超时时间,因为只是文件操作
         with ssh_connection(server, timeout=10) as ssh:
             # 构建CMDB服务器URL
             cmdb_server_url = f"http://{get_local_ip()}:8000"
@@ -353,13 +353,13 @@ def update_server_cron(server, cron_expression):
             # 等待命令执行完成
             stdout.read()
 
-            # 重新设置文件权限，确保cron服务能正常读取
+            # 重新设置文件权限,确保cron服务能正常读取
             ssh.exec_command('sudo chmod 644 /etc/cron.d/cmdb_agent')
 
         return True
 
     except Exception:
-        # 任何异常都返回False，不向上抛出异常
+        # 任何异常都返回False,不向上抛出异常
         # 这样便于批量处理时统计成功和失败的数量
         return False
 
@@ -369,7 +369,7 @@ def test_ssh_connection(ip, port, username, password):
     测试SSH连接的可用性
 
     在添加新服务器之前验证SSH连接配置是否正确。
-    这是一个独立的测试函数，不依赖Server模型。
+    这是一个独立的测试函数,不依赖Server模型。
 
     测试流程：
     1. 创建SSH客户端
@@ -403,7 +403,7 @@ def test_ssh_connection(ip, port, username, password):
     注意事项：
         - 使用较短的超时时间（10秒）
         - 测试完成后立即关闭连接
-        - 不执行任何命令，仅测试连接能力
+        - 不执行任何命令,仅测试连接能力
     """
     # 创建SSH客户端对象
     ssh = paramiko.SSHClient()
@@ -427,11 +427,11 @@ def test_ssh_connection(ip, port, username, password):
         return True, 'SSH连接测试成功'
 
     except paramiko.AuthenticationException:
-        # SSH认证失败，通常是用户名或密码错误
+        # SSH认证失败,通常是用户名或密码错误
         return False, 'SSH认证失败'
 
     except paramiko.SSHException as e:
-        # SSH协议相关错误，可能是版本不兼容或配置问题
+        # SSH协议相关错误,可能是版本不兼容或配置问题
         return False, f'SSH连接错误: {str(e)}'
 
     except Exception as e:

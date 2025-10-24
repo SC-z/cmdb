@@ -58,11 +58,13 @@
                             <tr>
                                 <th>SN</th>
                                 <th>主机名</th>
-                                <th>管理IP</th>
-                                <th>状态</th>
-                                <th>Agent</th>
-                                <th>最后上报</th>
-                                <th>创建时间</th>
+                                <th>IP</th>
+                                <th>status</th>
+                                <th>Core</th>
+                                <th>Arch</th>
+                                <th>Memory</th>
+                                <th>Last_time</th>
+                                <th>Create_time</th>
                                 <th>操作</th>
                             </tr>
                         </thead>
@@ -81,13 +83,9 @@
                                         <span class="badge bg-secondary">未知</span>
                                     {% endif %}
                                 </td>
-                                <td>
-                                    {% if server.agent_deployed %}
-                                        <span class="badge bg-success"><i class="bi bi-check-circle"></i> 已部署</span>
-                                    {% else %}
-                                        <span class="badge bg-warning"><i class="bi bi-exclamation-circle"></i> 未部署</span>
-                                    {% endif %}
-                                </td>
+                                <td>{{ server.display_cpu_logical }}</td>
+                                <td>{{ server.display_cpu_arch }}</td>
+                                <td>{{ server.display_memory_total }}</td>
                                 <td>
                                     {% if server.last_report_time %}
                                         <small>{{ server.last_report_time|date:"Y-m-d H:i:s" }}</small>
@@ -110,7 +108,7 @@
                             </tr>
                             {% empty %}
                             <tr>
-                                <td colspan="8" class="text-center text-muted">
+                                <td colspan="10" class="text-center text-muted">
                                     <i class="bi bi-inbox"></i> 暂无服务器数据
                                 </td>
                             </tr>

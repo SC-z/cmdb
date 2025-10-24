@@ -90,7 +90,7 @@ class CMDBAgent:
         if mac:
             return f"MAC-{mac.replace(':', '')}"
 
-        # 如果所有方法都失败，返回主机名作为标识
+        # 如果所有方法都失败,返回主机名作为标识
         hostname = self.get_hostname()
         return f"HOST-{hostname}"
 
@@ -296,7 +296,7 @@ class CMDBAgent:
                     elif connection_type == "rdma":
                         nvme_pcie[nvme_name] = "rdma"
 
-        # 4. 遍历所有磁盘，组装信息
+        # 4. 遍历所有磁盘,组装信息
         result = []
         for d in disks:
             # 序列号

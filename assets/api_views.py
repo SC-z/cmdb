@@ -1,13 +1,13 @@
 """
 CMDB API Views
 
-这个模块包含了CMDB系统的所有API接口，用于处理与Agent的通信和数据交换。
+这个模块包含了CMDB系统的所有API接口,用于处理与Agent的通信和数据交换。
 主要功能包括：
 1. Agent数据上报接口
 2. 服务器信息查询接口
 3. Agent脚本下载接口
 
-API设计遵循RESTful原则，使用JSON格式进行数据交换。
+API设计遵循RESTful原则,使用JSON格式进行数据交换。
 """
 import json
 import os
@@ -25,7 +25,7 @@ def agent_report(request):
     """
     Agent数据上报接口
 
-    这是CMDB系统最核心的API接口，用于接收Agent上报的服务器硬件信息。
+    这是CMDB系统最核心的API接口,用于接收Agent上报的服务器硬件信息。
     支持新服务器注册和已有服务器的数据更新。
 
     请求格式:
@@ -76,7 +76,7 @@ def agent_report(request):
     """
     # ==================== 请求方法验证 ====================
 
-    # 只接受POST请求，确保数据安全
+    # 只接受POST请求,确保数据安全
     if request.method != 'POST':
         return JsonResponse({
             'error': 'Method not allowed',
@@ -112,14 +112,14 @@ def agent_report(request):
         # ==================== 服务器记录处理 ====================
 
         # 查找或创建服务器记录
-        # 优先使用IP地址查找，避免临时SN导致重复记录
+        # 优先使用IP地址查找,避免临时SN导致重复记录
         is_new = False  # 标记是否为新服务器
 
         try:
             # 尝试根据管理IP查找现有服务器
             server = Server.objects.get(management_ip=management_ip)
 
-            # 服务器已存在，更新所有信息
+            # 服务器已存在,更新所有信息
             # 特别注意：这里会用真实的SN覆盖临时的SN
             server.sn = sn
             server.hostname = hostname
@@ -128,7 +128,7 @@ def agent_report(request):
             server.save()
 
         except Server.DoesNotExist:
-            # 服务器不存在，创建新记录
+            # 服务器不存在,创建新记录
             server = Server.objects.create(
                 sn=sn,
                 hostname=hostname,
@@ -160,7 +160,7 @@ def agent_report(request):
                 'memory_modules': memory_modules,
                 'memory_total_gb': memory_total_gb,
                 'disks': disks,
-                'raw_data': data  # 保存完整的原始数据，用于调试
+                'raw_data': data  # 保存完整的原始数据,用于调试
             }
 
             # 使用update_or_create方法更新或创建硬件信息记录
@@ -200,7 +200,7 @@ def server_list(request):
     """
     服务器列表API接口
 
-    提供所有服务器的列表信息，支持分页和过滤功能。
+    提供所有服务器的列表信息,支持分页和过滤功能。
     可以用于监控系统集成、数据展示等场景。
 
     请求格式:
@@ -248,7 +248,7 @@ def server_list(request):
     try:
         # ==================== 数据查询 ====================
 
-        # 获取所有服务器，按创建时间倒序排列
+        # 获取所有服务器,按创建时间倒序排列
         servers = Server.objects.all().order_by('-created_at')
 
         # ==================== 数据序列化 ====================
@@ -262,7 +262,7 @@ def server_list(request):
                 'hostname': server.hostname,
                 'management_ip': server.management_ip,
                 'status': server.status,
-                # 时间字段转换为ISO格式字符串，如果为空则为None
+                # 时间字段转换为ISO格式字符串,如果为空则为None
                 'last_report_time': server.last_report_time.isoformat() if server.last_report_time else None,
                 'agent_deployed': server.agent_deployed,
                 'created_at': server.created_at.isoformat(),
@@ -277,7 +277,7 @@ def server_list(request):
         })
 
     except Exception as e:
-        # 异常处理，返回错误信息
+        # 异常处理,返回错误信息
         return JsonResponse({
             'error': str(e)
         }, status=500)
@@ -287,7 +287,7 @@ def server_detail(request, server_id):
     """
     服务器详情API接口
 
-    获取指定服务器的详细信息，包括基本信息和完整的硬件配置。
+    获取指定服务器的详细信息,包括基本信息和完整的硬件配置。
     这是server_list接口的详细信息版本。
 
     请求格式:
@@ -344,7 +344,7 @@ def server_detail(request, server_id):
     try:
         # ==================== 数据查询 ====================
 
-        # 根据ID查询服务器，如果不存在会抛出DoesNotExist异常
+        # 根据ID查询服务器,如果不存在会抛出DoesNotExist异常
         server = Server.objects.get(id=server_id)
 
         # ==================== 基本信息序列化 ====================
@@ -402,8 +402,8 @@ def agent_script(request):
     """
     Agent脚本下载接口
 
-    提供Agent脚本文件的下载服务，用于服务器自动部署Agent。
-    包含IP白名单验证，确保只有授权的IP可以下载脚本。
+    提供Agent脚本文件的下载服务,用于服务器自动部署Agent。
+    包含IP白名单验证,确保只有授权的IP可以下载脚本。
 
     请求格式:
         GET /api/agent/script/
@@ -414,7 +414,7 @@ def agent_script(request):
         3. 文件安全检查：确保脚本文件存在且可读
 
     响应格式:
-        成功 (200): 返回agent.py脚本内容，Content-Type为text/plain
+        成功 (200): 返回agent.py脚本内容,Content-Type为text/plain
         失败 (403): IP不在白名单中
         失败 (404): 脚本文件不存在
         失败 (500): 服务器内部错误
@@ -428,7 +428,7 @@ def agent_script(request):
     安全考虑:
         - IP白名单验证防止未授权访问
         - 处理代理服务器的X-Forwarded-For头
-        - 文件路径安全检查，防止路径遍历攻击
+        - 文件路径安全检查,防止路径遍历攻击
     """
     # ==================== 请求方法验证 ====================
 
@@ -444,10 +444,10 @@ def agent_script(request):
     # 优先检查X-Forwarded-For头（处理代理和负载均衡器）
     x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
     if x_forwarded_for:
-        # X-Forwarded-For可能包含多个IP，取第一个（客户端真实IP）
+        # X-Forwarded-For可能包含多个IP,取第一个（客户端真实IP）
         client_ip = x_forwarded_for.split(',')[0].strip()
     else:
-        # 如果没有代理，直接使用REMOTE_ADDR
+        # 如果没有代理,直接使用REMOTE_ADDR
         client_ip = request.META.get('REMOTE_ADDR')
 
     # ==================== IP白名单验证 ====================
@@ -458,7 +458,7 @@ def agent_script(request):
     # 验证客户端IP是否在白名单中
     if not config.is_ip_allowed(client_ip):
         return HttpResponseForbidden(
-            f'IP {client_ip} 不在白名单中，访问被拒绝'
+            f'IP {client_ip} 不在白名单中,访问被拒绝'
         )
 
     # ==================== 脚本文件处理 ====================
@@ -472,7 +472,7 @@ def agent_script(request):
         with open(script_path, 'r', encoding='utf-8') as f:
             script_content = f.read()
 
-        # 返回脚本内容，设置正确的Content-Type
+        # 返回脚本内容,设置正确的Content-Type
         return HttpResponse(
             script_content,
             content_type='text/plain; charset=utf-8'

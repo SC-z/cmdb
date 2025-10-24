@@ -38,7 +38,7 @@ def calculate_next_run(cron_expression: str, reference: Optional[timezone.dateti
         return None
 
     if croniter is None:
-        logger.warning("croniter 未安装，无法计算下一次执行时间。")
+        logger.warning("croniter 未安装,无法计算下一次执行时间。")
         return None
 
     reference_time = reference or timezone.now()
@@ -68,7 +68,7 @@ def create_run_for_task(
     manual: bool = False,
     status: Optional[str] = None,
 ) -> ExecutionRun:
-    """为任务创建一次执行记录，并初始化阶段与作业。"""
+    """为任务创建一次执行记录,并初始化阶段与作业。"""
 
     if servers is None:
         servers = [target.server for target in task.targets.select_related('server').order_by('order', 'id')]
@@ -76,7 +76,7 @@ def create_run_for_task(
         servers = list(servers)
 
     if not servers:
-        raise ValueError('任务未配置目标服务器，无法创建执行。')
+        raise ValueError('任务未配置目标服务器,无法创建执行。')
 
     if scheduled_for and timezone.is_naive(scheduled_for):
         scheduled_for = timezone.make_aware(scheduled_for, timezone.get_current_timezone())

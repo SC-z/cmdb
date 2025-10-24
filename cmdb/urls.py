@@ -1,7 +1,7 @@
 """
 URL configuration for cmdb project.
 
-这是Django CMDB项目的主URL配置文件，负责将传入的HTTP请求路由到相应的视图函数或类。
+这是Django CMDB项目的主URL配置文件,负责将传入的HTTP请求路由到相应的视图函数或类。
 Django的URL路由系统支持：
 1. 函数视图 (Function views)
 2. 类视图 (Class-based views)
@@ -10,7 +10,7 @@ Django的URL路由系统支持：
 URL配置的工作原理：
 - Django按顺序匹配urlpatterns列表中的每个模式
 - 找到匹配项后立即调用对应的视图
-- 如果没有匹配项，返回404错误
+- 如果没有匹配项,返回404错误
 
 参考文档：https://docs.djangoproject.com/en/4.2/topics/http/urls/
 """

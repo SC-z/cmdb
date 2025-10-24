@@ -82,7 +82,7 @@ class SystemConfigAdmin(admin.ModelAdmin):
     )
 
     def has_add_permission(self, request):
-        # 单例模式，不允许添加新记录
+        # 单例模式,不允许添加新记录
         return not SystemConfig.objects.exists()
 
     def has_delete_permission(self, request, obj=None):

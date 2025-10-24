@@ -7,13 +7,13 @@ echo ""
 
 # 检查Python3
 if ! command -v python3 &> /dev/null; then
-    echo "[错误] 未找到Python3，请先安装Python 3.8+"
+    echo "[错误] 未找到Python3,请先安装Python 3.8+"
     exit 1
 fi
 
 # 检查虚拟环境
 if [ ! -d ".venv" ]; then
-    echo "[提示] 虚拟环境不存在，正在创建..."
+    echo "[提示] 虚拟环境不存在,正在创建..."
     python3 -m venv .venv
 fi
 

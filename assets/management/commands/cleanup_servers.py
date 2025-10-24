@@ -20,12 +20,12 @@ class Command(BaseCommand):
         parser.add_argument(
             '--dry-run',
             action='store_true',
-            help='预览模式，不实际删除'
+            help='预览模式,不实际删除'
         )
         parser.add_argument(
             '--force',
             action='store_true',
-            help='强制删除，不需要确认'
+            help='强制删除,不需要确认'
         )
 
     def handle(self, *args, **options):
@@ -39,12 +39,12 @@ class Command(BaseCommand):
         cutoff_time = timezone.now() - timedelta(days=days)
 
         # 查找符合条件的服务器
-        # 条件1: 有上报记录，但超过N天
+        # 条件1: 有上报记录,但超过N天
         condition1 = Server.objects.filter(
             last_report_time__lt=cutoff_time
         )
 
-        # 条件2: 从未上报，且创建超过N天
+        # 条件2: 从未上报,且创建超过N天
         condition2 = Server.objects.filter(
             last_report_time__isnull=True,
             created_at__lt=cutoff_time

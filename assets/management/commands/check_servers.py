@@ -66,7 +66,7 @@ class Command(BaseCommand):
 
         self.stdout.write(
             self.style.SUCCESS(
-                f'\n检查完成：在线 {online_count} 台，离线 {offline_count} 台'
+                f'\n检查完成：在线 {online_count} 台,离线 {offline_count} 台'
             )
         )
 

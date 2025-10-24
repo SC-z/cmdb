@@ -14,9 +14,9 @@
 </div>
 
 <div class="row">
-    <div class="col-lg-9 col-xl-7 col-xxl-6 mx-auto">
-        <div class="card">
-            <div class="card-body">
+    <div class="col-12 col-lg-10 col-xl-9 col-xxl-8 mx-auto">
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-4">
                 <form method="post">
                     {% csrf_token %}
 
@@ -26,16 +26,16 @@
                         </label>
                         <input type="text" class="form-control" id="management_ip"
                                name="management_ip" required
-                               placeholder="例如：192.168.1.100">
-                        <div class="form-text">服务器的管理IP地址</div>
+                               placeholder="例如:192.168.1.100">
+                        <!-- <div class="form-text">服务器的管理IP地址</div> -->
                     </div>
 
                     <div class="mb-3">
                         <label for="hostname" class="form-label">主机名（可选）</label>
                         <input type="text" class="form-control" id="hostname"
                                name="hostname"
-                               placeholder="例如：web-server-01">
-                        <div class="form-text">可选，Agent上报后会自动更新</div>
+                               placeholder="例如: web-server-01">
+                        <!-- <div class="form-text">可选,Agent上报后会自动更新</div> -->
                     </div>
 
                     <hr>
@@ -48,8 +48,8 @@
                         </label>
                         <input type="text" class="form-control" id="ssh_username"
                                name="ssh_username" required
-                               placeholder="例如：root">
-                        <div class="form-text">用于SSH连接和部署Agent</div>
+                               placeholder="例如:root">
+                        <!-- <div class="form-text">用于SSH连接和部署Agent</div> -->
                     </div>
 
                     <div class="mb-3">
@@ -75,7 +75,7 @@
                         <i class="bi bi-info-circle"></i>
                         <strong>提示：</strong>
                         <ul class="mb-0 mt-2">
-                            <li>添加服务器后，系统会自动尝试SSH连接</li>
+                            <li>添加服务器后,系统会自动尝试SSH连接</li>
                             <li>连接成功后会自动部署Agent脚本</li>
                             <li>Agent部署后会定时（15分钟）上报硬件信息</li>
                             <li>请确保目标服务器已安装Python 3.x</li>

@@ -18,7 +18,7 @@ services:
       - ./data:/app/data
       # 日志持久化
       - ./logs:/app/logs
-      # 如果需要在开发模式下实时更新代码，取消下面的注释
+      # 如果需要在开发模式下实时更新代码,取消下面的注释
       # - .:/app
     restart: unless-stopped
     healthcheck:

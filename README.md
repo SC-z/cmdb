@@ -1,15 +1,15 @@
 # CMDB 资产管理系统
 
-基于 Django 的轻量级 IT 资产管理系统，支持自动化硬件信息采集和管理。
+基于 Django 的轻量级 IT 资产管理系统,支持自动化硬件信息采集和管理。
 
 ## ✨ 核心特性
 
 - **自动化采集**：Agent 自动采集服务器硬件信息（CPU、内存、磁盘）
-- **远程脚本执行**：Agent 脚本集中管理，节点通过 `curl | python3` 远程执行
+- **远程脚本执行**：Agent 脚本集中管理,节点通过 `curl | python3` 远程执行
 - **IP 白名单**：支持 IP/CIDR 网段访问控制
 - **定时任务管理**：Web 界面统一配置和批量更新所有节点 cron 任务
 - **NVMe/NVMeoF 支持**：完整支持 PCIe NVMe 和 RDMA NVMeoF 磁盘识别
-- **轻量级部署**：SQLite 数据库，Docker 一键部署
+- **轻量级部署**：SQLite 数据库,Docker 一键部署
 
 ## 🏗️ 架构设计
 
@@ -50,7 +50,7 @@ cd cmdb
 
 ```bash
 cp .env.example .env
-# 编辑 .env 文件，修改配置
+# 编辑 .env 文件,修改配置
 vim .env
 ```
 
@@ -160,7 +160,7 @@ uv pip sync
 
 ### 3. 查看硬件信息
 
-点击服务器详情页面，查看：
+点击服务器详情页面,查看：
 
 - **CPU 信息**：型号、架构、核心数、Socket 数
 - **内存信息**：每条内存的插槽、容量、频率、序列号、厂商
@@ -168,7 +168,7 @@ uv pip sync
 
 ### 4. 批量更新定时任务
 
-修改 Cron 表达式后，点击 **一键更新所有主机定时任务** 批量推送配置。
+修改 Cron 表达式后,点击 **一键更新所有主机定时任务** 批量推送配置。
 
 ## 🔧 Agent 脚本
 
@@ -194,7 +194,7 @@ curl -s http://cmdb-server:8000/api/agent/script/ | python3 - --server http://cm
   - 容量：lsblk（批量获取）
   - 类型：/sys/block/*/queue/rotational
   - NVMe 序列号：nvme list -o json（批量获取）
-  - PCIe 槽位：nvme list-subsys（批量获取，支持 RDMA 识别）
+  - PCIe 槽位：nvme list-subsys（批量获取,支持 RDMA 识别）
   - SATA/SAS 序列号：smartctl
 
 ### 优化特性
@@ -285,8 +285,8 @@ MIT License
 
 ## 📧 联系方式
 
-如有问题，请提交 Issue 或联系维护者。
+如有问题,请提交 Issue 或联系维护者。
 
 ---
 
-**⭐ 如果这个项目对你有帮助，请给个 Star！**
+**⭐ 如果这个项目对你有帮助,请给个 Star！**

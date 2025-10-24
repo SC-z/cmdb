@@ -14,8 +14,8 @@ class Migration(migrations.Migration):
             name='SystemConfig',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('allowed_networks', models.TextField(default='10.0.0.0/8\n172.16.0.0/12\n192.168.0.0/16', help_text='每行一个IP地址或网段（CIDR格式），如：10.10.90.0/24', verbose_name='允许的IP/网段')),
-                ('cron_expression', models.CharField(default='0 * * * *', help_text='格式：分 时 日 月 周，如：0 * * * *（每小时）', max_length=100, verbose_name='Cron表达式')),
+                ('allowed_networks', models.TextField(default='10.0.0.0/8\n172.16.0.0/12\n192.168.0.0/16', help_text='每行一个IP地址或网段（CIDR格式）,如：10.10.90.0/24', verbose_name='允许的IP/网段')),
+                ('cron_expression', models.CharField(default='0 * * * *', help_text='格式：分 时 日 月 周,如：0 * * * *（每小时）', max_length=100, verbose_name='Cron表达式')),
                 ('cron_description', models.CharField(blank=True, default='每小时执行一次', max_length=200, verbose_name='定时任务描述')),
                 ('updated_at', models.DateTimeField(auto_now=True, verbose_name='更新时间')),
             ],

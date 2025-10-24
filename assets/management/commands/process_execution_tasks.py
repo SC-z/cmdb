@@ -11,7 +11,7 @@ from ...models import ExecutionRun, ExecutionTask
 
 
 class Command(BaseCommand):
-    help = '处理计划执行的远程批量任务，并调度周期任务。'
+    help = '处理计划执行的远程批量任务,并调度周期任务。'
 
     def handle(self, *args, **options):
         now = timezone.now()
