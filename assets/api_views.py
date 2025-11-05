@@ -9,15 +9,34 @@ CMDB API Views
 
 API设计遵循RESTful原则,使用JSON格式进行数据交换。
 """
+import ipaddress
 import json
 import os
 from datetime import datetime
+from django.db import transaction
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse, HttpResponse, HttpResponseForbidden
 from django.views import View
 from django.conf import settings
 from .models import Server, HardwareInfo, SystemConfig
+from .utils import archive_server_record
+
+
+def normalize_optional_ip(value):
+    """将可选IP字符串规范化,无效值返回None。"""
+    if value is None:
+        return None
+    if isinstance(value, str):
+        trimmed = value.strip()
+        if not trimmed or trimmed.lower() == 'null':
+            return None
+        try:
+            ipaddress.ip_address(trimmed)
+        except ValueError:
+            return None
+        return trimmed
+    return None
 
 
 @csrf_exempt
@@ -36,6 +55,7 @@ def agent_report(request):
         {
             "sn": "服务器序列号",
             "management_ip": "管理IP地址",
+            "bmc_ip": "可选BMC/IPMI地址",
             "hostname": "主机名",
             "hardware_info": {
                 "cpu": {
@@ -107,6 +127,8 @@ def agent_report(request):
 
         # 获取可选字段
         hostname = data.get('hostname', '')
+        bmc_ip_provided = 'bmc_ip' in data
+        bmc_ip = normalize_optional_ip(data.get('bmc_ip')) if bmc_ip_provided else None
         hardware_info = data.get('hardware_info', {})
 
         # ==================== 服务器记录处理 ====================
@@ -115,28 +137,56 @@ def agent_report(request):
         # 优先使用IP地址查找,避免临时SN导致重复记录
         is_new = False  # 标记是否为新服务器
 
-        try:
-            # 尝试根据管理IP查找现有服务器
-            server = Server.objects.get(management_ip=management_ip)
+        now = timezone.now()
 
-            # 服务器已存在,更新所有信息
-            # 特别注意：这里会用真实的SN覆盖临时的SN
-            server.sn = sn
-            server.hostname = hostname
-            server.status = 'online'  # 设置为在线状态
-            server.last_report_time = timezone.now()  # 更新最后上报时间
-            server.save()
-
-        except Server.DoesNotExist:
-            # 服务器不存在,创建新记录
-            server = Server.objects.create(
-                sn=sn,
-                hostname=hostname,
-                management_ip=management_ip,
-                status='online',
-                last_report_time=timezone.now()
+        with transaction.atomic():
+            server_by_ip = (
+                Server.objects.select_for_update()
+                .filter(management_ip=management_ip)
+                .order_by('-updated_at')
+                .first()
             )
-            is_new = True
+            server_by_sn = (
+                Server.objects.select_for_update()
+                .filter(sn=sn)
+                .order_by('-updated_at')
+                .first()
+            )
+
+            if server_by_sn and server_by_ip and server_by_sn.id == server_by_ip.id:
+                server = server_by_sn
+                is_new = False
+            else:
+                if server_by_sn:
+                    reason = 'sn_ip_changed' if server_by_sn.management_ip != management_ip else 'sn_duplicate'
+                    archive_server_record(server_by_sn, reason=reason)
+
+                if server_by_ip:
+                    archive_server_record(server_by_ip, reason='ip_reused_by_new_sn')
+
+                server = Server.objects.create(
+                    sn=sn,
+                    hostname=hostname,
+                    management_ip=management_ip,
+                    bmc_ip=bmc_ip if bmc_ip_provided else None,
+                    status='online',
+                    last_report_time=now
+                )
+                is_new = True
+
+            if not is_new:
+                server.sn = sn
+                server.hostname = hostname
+                if server.management_ip != management_ip:
+                    server.management_ip = management_ip
+                if bmc_ip_provided:
+                    server.bmc_ip = bmc_ip
+                server.status = 'online'
+                server.last_report_time = now
+                update_fields = ['sn', 'hostname', 'management_ip', 'status', 'last_report_time']
+                if bmc_ip_provided:
+                    update_fields.append('bmc_ip')
+                server.save(update_fields=update_fields)
 
         # ==================== 硬件信息处理 ====================
 
@@ -155,7 +205,6 @@ def agent_report(request):
 
             # 准备硬件信息数据
             hw_data = {
-                'server': server,
                 'cpu_info': cpu_info,
                 'memory_modules': memory_modules,
                 'memory_total_gb': memory_total_gb,

@@ -364,6 +364,57 @@ def update_server_cron(server, cron_expression):
         return False
 
 
+def archive_server_record(server, reason=''):
+    """将现役服务器及其硬件信息归档。"""
+
+    from django.db import transaction
+
+    from .models import ArchivedServer, ArchivedHardwareInfo, HardwareInfo
+
+    with transaction.atomic():
+        hardware_snapshot = None
+        try:
+            hardware = server.hardware
+            hardware_snapshot = {
+                'cpu_info': hardware.cpu_info,
+                'memory_modules': hardware.memory_modules,
+                'memory_total_gb': hardware.memory_total_gb,
+                'disks': hardware.disks,
+                'raw_data': hardware.raw_data,
+                'collected_at': hardware.collected_at,
+            }
+        except HardwareInfo.DoesNotExist:
+            hardware_snapshot = None
+
+        archived_server = ArchivedServer.objects.create(
+            original_server_id=server.id,
+            sn=server.sn,
+            hostname=server.hostname,
+            management_ip=server.management_ip,
+            bmc_ip=server.bmc_ip,
+            status=server.status,
+            ssh_username=server.ssh_username,
+            ssh_password=server.ssh_password,
+            ssh_port=server.ssh_port,
+            agent_deployed=server.agent_deployed,
+            agent_version=server.agent_version,
+            last_report_time=server.last_report_time,
+            created_at=server.created_at,
+            updated_at=server.updated_at,
+            archived_reason=reason,
+        )
+
+        if hardware_snapshot:
+            ArchivedHardwareInfo.objects.create(
+                archived_server=archived_server,
+                **hardware_snapshot,
+            )
+
+        server.delete()
+
+        return archived_server
+
+
 def test_ssh_connection(ip, port, username, password):
     """
     测试SSH连接的可用性

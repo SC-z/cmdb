@@ -18,6 +18,7 @@ from .models import (
     ExecutionRun,
     ExecutionTask,
     HardwareInfo,
+    ArchivedServer,
     Server,
     SystemConfig,
 )
@@ -65,7 +66,8 @@ def server_list_view(request):
         servers = servers.filter(
             Q(sn__icontains=search_query) |  # 序列号包含关键词
             Q(hostname__icontains=search_query) |  # 主机名包含关键词
-            Q(management_ip__icontains=search_query)  # 管理IP包含关键词
+            Q(management_ip__icontains=search_query) |  # 管理IP包含关键词
+            Q(bmc_ip__icontains=search_query)  # BMC IP包含关键词
         )
 
     # 如果选择了状态过滤器,按状态过滤
@@ -99,6 +101,39 @@ def server_list_view(request):
 
     # 渲染模板并返回响应
     return render(request, "server_list.html", context)
+
+
+def archived_server_list_view(request):
+    """归档服务器列表视图。"""
+
+    search_query = request.GET.get('search', '').strip()
+
+    archived_servers_qs = ArchivedServer.objects.select_related('hardware').order_by('-archived_at')
+
+    if search_query:
+        archived_servers_qs = archived_servers_qs.filter(
+            Q(sn__icontains=search_query) |
+            Q(hostname__icontains=search_query) |
+            Q(management_ip__icontains=search_query) |
+            Q(bmc_ip__icontains=search_query)
+        )
+
+    archived_list = []
+    for archived in archived_servers_qs:
+        hardware = getattr(archived, "hardware", None)
+        cpu_info = hardware.cpu_info if hardware and isinstance(hardware.cpu_info, dict) else {}
+        archived.display_cpu_logical = cpu_info.get("logical_cores", "--")
+        archived.display_cpu_arch = cpu_info.get("architecture", "--")
+        memory_total = hardware.memory_total_gb if hardware else None
+        archived.display_memory_total = f"{memory_total} GB" if memory_total is not None else "--"
+        archived_list.append(archived)
+
+    context = {
+        "archived_servers": archived_list,
+        "search_query": search_query,
+    }
+
+    return render(request, "server_archive_list.html", context)
 
 
 def add_server_view(request):
@@ -138,6 +173,8 @@ def add_server_view(request):
         ssh_password = request.POST.get('ssh_password', '').strip()
         ssh_port = request.POST.get('ssh_port', '22').strip()
         hostname = request.POST.get('hostname', '').strip()
+        bmc_ip_raw = request.POST.get('bmc_ip', '').strip()
+        bmc_ip_value = None
 
         # ==================== 数据验证阶段 ====================
 
@@ -161,7 +198,19 @@ def add_server_view(request):
             )
             return render(request, 'add_server.html')
 
-        # 3. SSH端口号验证
+        # 3. 可选BMC IP格式验证
+        if bmc_ip_raw:
+            try:
+                ipaddress.ip_address(bmc_ip_raw)
+                bmc_ip_value = bmc_ip_raw
+            except ValueError:
+                messages.error(
+                    request,
+                    f'BMC IP地址格式错误: {bmc_ip_raw},请输入正确的IPv4或IPv6地址'
+                )
+                return render(request, 'add_server.html')
+
+        # 4. SSH端口号验证
         # 确保端口号在有效范围内（1-65535）
         try:
             ssh_port_int = int(ssh_port)
@@ -174,7 +223,7 @@ def add_server_view(request):
             )
             return render(request, 'add_server.html')
 
-        # 4. IP地址唯一性检查
+        # 5. IP地址唯一性检查
         # 防止重复添加同一台服务器
         if Server.objects.filter(management_ip=management_ip).exists():
             messages.error(
@@ -185,7 +234,7 @@ def add_server_view(request):
 
         # ==================== SSH连接测试阶段 ====================
 
-        # 5. 在创建数据库记录之前先测试SSH连接
+        # 6. 在创建数据库记录之前先测试SSH连接
         # 这样可以避免因为连接问题导致数据库中产生无效记录
         messages.info(
             request,
@@ -209,13 +258,14 @@ def add_server_view(request):
 
         # ==================== 数据库记录创建阶段 ====================
 
-        # 6. SSH测试成功,创建服务器记录
+        # 7. SSH测试成功,创建服务器记录
         try:
             # 创建服务器对象
             server = Server.objects.create(
                 sn=f'TEMP-{management_ip}',  # 临时序列号,等待Agent上报真实SN
                 hostname=hostname,
                 management_ip=management_ip,
+                bmc_ip=bmc_ip_value,
                 ssh_username=ssh_username,
                 ssh_port=ssh_port_int,
                 status='unknown'  # 初始状态为未知
@@ -227,7 +277,7 @@ def add_server_view(request):
 
             # ==================== Agent部署阶段 ====================
 
-            # 7. 自动部署数据采集Agent
+            # 8. 自动部署数据采集Agent
             messages.info(
                 request,
                 f'SSH连接成功,正在部署Agent...'
@@ -331,6 +381,74 @@ def delete_server_view(request, server_id):
 
     # 重定向到服务器列表页面
     return redirect('assets:server_list')
+
+
+def bulk_server_action_view(request):
+    """现役服务器批量操作。"""
+
+    if request.method != 'POST':
+        return redirect('assets:server_list')
+
+    action = request.POST.get('action', '').strip()
+    selected_ids = request.POST.getlist('selected')
+
+    if not selected_ids:
+        messages.warning(request, '请选择至少一台服务器后再执行操作')
+        return redirect('assets:server_list')
+
+    try:
+        id_list = [int(pk) for pk in selected_ids]
+    except ValueError:
+        messages.error(request, '选择的服务器ID无效')
+        return redirect('assets:server_list')
+
+    if action == 'delete':
+        if not request.user.has_perm('assets.delete_server'):
+            messages.error(request, '没有执行批量删除的权限')
+            return redirect('assets:server_list')
+
+        queryset = Server.objects.filter(id__in=id_list)
+        deleted_count = queryset.count()
+        queryset.delete()
+        messages.success(request, f'已删除 {deleted_count} 台服务器')
+    else:
+        messages.error(request, '未识别的批量操作类型')
+
+    return redirect('assets:server_list')
+
+
+def bulk_archived_server_action_view(request):
+    """归档服务器批量操作。"""
+
+    if request.method != 'POST':
+        return redirect('assets:archived_server_list')
+
+    action = request.POST.get('action', '').strip()
+    selected_ids = request.POST.getlist('selected')
+
+    if not selected_ids:
+        messages.warning(request, '请选择至少一条归档记录后再执行操作')
+        return redirect('assets:archived_server_list')
+
+    try:
+        id_list = [int(pk) for pk in selected_ids]
+    except ValueError:
+        messages.error(request, '选择的归档记录ID无效')
+        return redirect('assets:archived_server_list')
+
+    if action == 'delete':
+        if not request.user.has_perm('assets.delete_archivedserver'):
+            messages.error(request, '没有执行归档记录删除的权限')
+            return redirect('assets:archived_server_list')
+
+        queryset = ArchivedServer.objects.filter(id__in=id_list)
+        deleted_count = queryset.count()
+        queryset.delete()
+        messages.success(request, f'已删除 {deleted_count} 条归档记录')
+    else:
+        messages.error(request, '未识别的批量操作类型')
+
+    return redirect('assets:archived_server_list')
 
 
 def system_settings_view(request):

@@ -13,14 +13,14 @@ from .models import (
 
 @admin.register(Server)
 class ServerAdmin(admin.ModelAdmin):
-    list_display = ['sn', 'hostname', 'management_ip', 'status', 'agent_deployed', 'last_report_time', 'created_at']
+    list_display = ['sn', 'hostname', 'management_ip', 'bmc_ip', 'status', 'agent_deployed', 'last_report_time', 'created_at']
     list_filter = ['status', 'agent_deployed', 'created_at']
-    search_fields = ['sn', 'hostname', 'management_ip']
+    search_fields = ['sn', 'hostname', 'management_ip', 'bmc_ip']
     readonly_fields = ['created_at', 'updated_at']
 
     fieldsets = (
         ('基本信息', {
-            'fields': ('sn', 'hostname', 'management_ip', 'status')
+            'fields': ('sn', 'hostname', 'management_ip', 'bmc_ip', 'status')
         }),
         ('SSH信息', {
             'fields': ('ssh_username', 'ssh_password', 'ssh_port')

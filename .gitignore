@@ -80,3 +80,4 @@ id_rsa*
 # Agent scripts backup
 agent_backup/
 AGENTS.md
+list

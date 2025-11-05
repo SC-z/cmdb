@@ -123,6 +123,30 @@ class CMDBAgent:
 
         return '127.0.0.1'
 
+    def get_ipmitool_ip(self):
+        """获取 BMC IP 地址"""
+
+        def parse_ip(output):
+            match = re.search(r"IP Address\s*:\s*([\d.]+)", output)
+            if match:
+                ip = match.group(1).strip()
+                if ip and ip != "0.0.0.0":
+                    return ip
+            return None
+
+        output = self.run_command("ipmitool lan print")
+        ip = parse_ip(output)
+        if ip:
+            return ip
+
+        for channel in range(0, 11):
+            output = self.run_command(f"ipmitool lan print {channel}")
+            ip = parse_ip(output)
+            if ip:
+                return ip
+
+        return "null"
+
     def get_hostname(self):
         """获取主机名"""
         hostname = self.run_command("hostname")
@@ -336,10 +360,12 @@ class CMDBAgent:
         # 必须采集的信息
         self.hardware_data['sn'] = self.get_sn()
         self.hardware_data['management_ip'] = self.get_management_ip()
+        self.hardware_data['bmc_ip'] = self.get_ipmitool_ip()
         self.hardware_data['hostname'] = self.get_hostname()
 
         print(f"[INFO] SN: {self.hardware_data['sn']}")
         print(f"[INFO] IP: {self.hardware_data['management_ip']}")
+        print(f"[INFO] BMC IP: {self.hardware_data['bmc_ip']}")
         print(f"[INFO] Hostname: {self.hardware_data['hostname']}")
 
         # 采集硬件详细信息

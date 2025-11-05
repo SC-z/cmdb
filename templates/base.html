@@ -42,6 +42,11 @@
             gap: 0.6rem;
             font-weight: 500;
         }
+        .sidebar .nav-link.sub-item {
+            padding-left: 2.2rem;
+            font-size: 0.9rem;
+            opacity: 0.85;
+        }
         .sidebar .nav-link i {
             font-size: 1.1rem;
         }
@@ -217,6 +222,11 @@
                         <i class="bi bi-list"></i>
                         <span>服务器列表</span>
                     </a>
+                    <a href="{% url 'assets:archived_server_list' %}"
+                       class="nav-link sub-item {% if request.resolver_match.url_name == 'archived_server_list' %}active{% endif %}">
+                        <i class="bi bi-archive"></i>
+                        <span>归档库</span>
+                    </a>
                     <a href="{% url 'assets:task_list' %}" class="nav-link {% if request.resolver_match.url_name == 'task_list' or request.resolver_match.url_name == 'task_detail' or request.resolver_match.url_name == 'task_create' %}active{% endif %}">
                         <i class="bi bi-terminal"></i>
                         <span>任务列表</span>
@@ -227,13 +237,13 @@
                     </a>
                 </div>
             </div>
-            <div class="mt-auto px-4 pt-4">
+            <!-- <div class="mt-auto px-4 pt-4">
                 <span class="nav-heading mb-2 d-block">系统</span>
 {#                <a href="/admin/" target="_blank" class="nav-link">#}
 {#                    <i class="bi bi-gear-fill"></i>#}
 {#                    <span>进入Admin后台</span>#}
 {#                </a>#}
-            </div>
+            </div> -->
         </aside>
         <div class="main-area">
             {% if messages %}

@@ -55,6 +55,10 @@
                                 <td>{{ server.management_ip|default:"--" }}</td>
                             </tr>
                             <tr>
+                                <th>带外IP</th>
+                                <td>{{ server.bmc_ip|default:"--" }}</td>
+                            </tr>
+                            <tr>
                                 <th>状态</th>
                                 <td>
                                     {% if server.status == 'online' %}
