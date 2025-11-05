@@ -34,12 +34,8 @@ urlpatterns = [
     # 这是CMDB系统的主入口页面
     path('', views.server_list_view, name='server_list'),
 
-    # 归档服务器列表
-    path('archive/', views.archived_server_list_view, name='archived_server_list'),
-
     # 批量操作
     path('server/bulk-action/', views.bulk_server_action_view, name='server_bulk_action'),
-    path('archive/bulk-action/', views.bulk_archived_server_action_view, name='archived_server_bulk_action'),
 
     # 添加服务器页面
     # URL: /add/

@@ -507,60 +507,6 @@ class HardwareInfo(models.Model):
         return len(self.disks)
 
 
-class ArchivedServer(models.Model):
-    """归档服务器记录,保留历史数据快照。"""
-
-    original_server_id = models.IntegerField('原服务器ID', null=True, blank=True, db_index=True)
-    sn = models.CharField('序列号', max_length=100, db_index=True)
-    hostname = models.CharField('主机名', max_length=100, blank=True)
-    management_ip = models.GenericIPAddressField('管理IP', null=True, blank=True)
-    bmc_ip = models.GenericIPAddressField('BMC IP', null=True, blank=True)
-    status = models.CharField('状态', max_length=20, choices=Server.STATUS_CHOICES, default='unknown')
-    ssh_username = models.CharField('SSH用户名', max_length=50, blank=True)
-    ssh_password = models.CharField('SSH密码', max_length=200, blank=True)
-    ssh_port = models.IntegerField('SSH端口', default=22)
-    agent_deployed = models.BooleanField('Agent已部署', default=False)
-    agent_version = models.CharField('Agent版本', max_length=20, blank=True)
-    last_report_time = models.DateTimeField('最后上报时间', null=True, blank=True)
-    created_at = models.DateTimeField('创建时间')
-    updated_at = models.DateTimeField('更新时间')
-    archived_at = models.DateTimeField('归档时间', auto_now_add=True, db_index=True)
-    archived_reason = models.CharField('归档原因', max_length=100, blank=True)
-
-    class Meta:
-        verbose_name = '归档服务器'
-        verbose_name_plural = '归档服务器'
-        ordering = ['-archived_at']
-
-    def __str__(self):
-        return f"[归档] {self.sn} ({self.management_ip or '无IP'})"
-
-
-class ArchivedHardwareInfo(models.Model):
-    """归档硬件信息记录。"""
-
-    archived_server = models.OneToOneField(
-        ArchivedServer,
-        on_delete=models.CASCADE,
-        related_name='hardware',
-        verbose_name='归档服务器'
-    )
-    cpu_info = models.JSONField('CPU信息', default=dict, blank=True)
-    memory_modules = models.JSONField('内存条信息', default=list, blank=True)
-    memory_total_gb = models.IntegerField('系统总内存(GB)', null=True, blank=True)
-    disks = models.JSONField('磁盘信息', default=list, blank=True)
-    raw_data = models.JSONField('原始数据', default=dict, blank=True)
-    collected_at = models.DateTimeField('采集时间', null=True, blank=True)
-    archived_at = models.DateTimeField('归档时间', auto_now_add=True)
-
-    class Meta:
-        verbose_name = '归档硬件信息'
-        verbose_name_plural = '归档硬件信息'
-
-    def __str__(self):
-        return f"{self.archived_server.sn} 的归档硬件信息"
-
-
 class SystemConfig(models.Model):
     """
     系统配置模型（单例模式）

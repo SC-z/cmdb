@@ -20,8 +20,6 @@ from django.http import JsonResponse, HttpResponse, HttpResponseForbidden
 from django.views import View
 from django.conf import settings
 from .models import Server, HardwareInfo, SystemConfig
-from .utils import archive_server_record
-
 
 def normalize_optional_ip(value):
     """将可选IP字符串规范化,无效值返回None。"""
@@ -153,17 +151,16 @@ def agent_report(request):
                 .first()
             )
 
-            if server_by_sn and server_by_ip and server_by_sn.id == server_by_ip.id:
+            server = None
+            is_new = False
+
+            if server_by_sn:
                 server = server_by_sn
-                is_new = False
+                if server_by_ip and server_by_ip.id != server.id:
+                    server_by_ip.delete()
+            elif server_by_ip:
+                server = server_by_ip
             else:
-                if server_by_sn:
-                    reason = 'sn_ip_changed' if server_by_sn.management_ip != management_ip else 'sn_duplicate'
-                    archive_server_record(server_by_sn, reason=reason)
-
-                if server_by_ip:
-                    archive_server_record(server_by_ip, reason='ip_reused_by_new_sn')
-
                 server = Server.objects.create(
                     sn=sn,
                     hostname=hostname,

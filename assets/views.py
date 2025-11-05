@@ -18,7 +18,6 @@ from .models import (
     ExecutionRun,
     ExecutionTask,
     HardwareInfo,
-    ArchivedServer,
     Server,
     SystemConfig,
 )
@@ -101,39 +100,6 @@ def server_list_view(request):
 
     # 渲染模板并返回响应
     return render(request, "server_list.html", context)
-
-
-def archived_server_list_view(request):
-    """归档服务器列表视图。"""
-
-    search_query = request.GET.get('search', '').strip()
-
-    archived_servers_qs = ArchivedServer.objects.select_related('hardware').order_by('-archived_at')
-
-    if search_query:
-        archived_servers_qs = archived_servers_qs.filter(
-            Q(sn__icontains=search_query) |
-            Q(hostname__icontains=search_query) |
-            Q(management_ip__icontains=search_query) |
-            Q(bmc_ip__icontains=search_query)
-        )
-
-    archived_list = []
-    for archived in archived_servers_qs:
-        hardware = getattr(archived, "hardware", None)
-        cpu_info = hardware.cpu_info if hardware and isinstance(hardware.cpu_info, dict) else {}
-        archived.display_cpu_logical = cpu_info.get("logical_cores", "--")
-        archived.display_cpu_arch = cpu_info.get("architecture", "--")
-        memory_total = hardware.memory_total_gb if hardware else None
-        archived.display_memory_total = f"{memory_total} GB" if memory_total is not None else "--"
-        archived_list.append(archived)
-
-    context = {
-        "archived_servers": archived_list,
-        "search_query": search_query,
-    }
-
-    return render(request, "server_archive_list.html", context)
 
 
 def add_server_view(request):
@@ -415,40 +381,6 @@ def bulk_server_action_view(request):
         messages.error(request, '未识别的批量操作类型')
 
     return redirect('assets:server_list')
-
-
-def bulk_archived_server_action_view(request):
-    """归档服务器批量操作。"""
-
-    if request.method != 'POST':
-        return redirect('assets:archived_server_list')
-
-    action = request.POST.get('action', '').strip()
-    selected_ids = request.POST.getlist('selected')
-
-    if not selected_ids:
-        messages.warning(request, '请选择至少一条归档记录后再执行操作')
-        return redirect('assets:archived_server_list')
-
-    try:
-        id_list = [int(pk) for pk in selected_ids]
-    except ValueError:
-        messages.error(request, '选择的归档记录ID无效')
-        return redirect('assets:archived_server_list')
-
-    if action == 'delete':
-        if not request.user.has_perm('assets.delete_archivedserver'):
-            messages.error(request, '没有执行归档记录删除的权限')
-            return redirect('assets:archived_server_list')
-
-        queryset = ArchivedServer.objects.filter(id__in=id_list)
-        deleted_count = queryset.count()
-        queryset.delete()
-        messages.success(request, f'已删除 {deleted_count} 条归档记录')
-    else:
-        messages.error(request, '未识别的批量操作类型')
-
-    return redirect('assets:archived_server_list')
 
 
 def system_settings_view(request):

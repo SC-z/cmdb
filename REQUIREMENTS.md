@@ -11,13 +11,13 @@
 ### 2.1 服务器管理
 - 录入服务器(管理 IP 唯一),存储 SSH 用户名/密码/端口,可选主机名、BMC IP。
 - 列表页支持 SN/主机名/管理 IP/BMC 搜索与状态过滤,展示 CPU/内存汇总、Agent 状态。
-- 详情页展示基础信息、Agent 信息、硬件明细(JSON),支持删除归档。
-- 14 天未上报自动归档到 `ArchivedServer` 并保存硬件快照。
+- 详情页展示基础信息、Agent 信息、硬件明细(JSON),支持直接删除资产。
+- 14 天未上报时可通过清理任务直接删除服务器,不再保留历史快照。
 
 ### 2.2 Agent 采集
 - `/api/agent/script/` 返回最新 `assets/agent.py`, 节点通过 `curl | python3` 拉取执行。
 - 采集 SN、主机名、管理 IP、BMC IP、CPU、内存、磁盘,失败项回落到 `Unknown/null`。
-- `/api/agent/report/` 校验 `sn`、`management_ip`, 根据 SN/IP 归档旧记录或更新现有记录,落库 `HardwareInfo`。
+- `/api/agent/report/` 校验 `sn`、`management_ip`, 并更新已有记录(冲突时直接覆盖),再落库 `HardwareInfo`。
 - Agent 默认 15 分钟执行,命令超时 10s,上报超时 30s,失败仅记录本地日志等待下次。
 
 ### 2.3 定时/批量执行
@@ -36,14 +36,13 @@
 | --- | --- | --- |
 | `Server` | `sn`(唯一), `management_ip`, `bmc_ip`, `ssh_*`, `agent_*`, `last_report_time` | 服务器主表 |
 | `HardwareInfo` | `cpu_info`, `memory_modules`, `memory_total_gb`, `disks`, `raw_data` | 一对一硬件快照 |
-| `ArchivedServer`/`ArchivedHardwareInfo` | 与现役同结构,附 `archived_reason`, `archived_at` | 历史快照 |
 | `ExecutionTask`/`ExecutionRun`/`ExecutionStage`/`ExecutionJob` | 任务配置、运行状态、阶段输出 | 远程批量执行 |
 | `SystemConfig` | `allowed_networks`, `cron_expression`, `cron_description` | 白名单与 Cron 配置 |
 
 ## 5. API 约束
 - **下载脚本** `GET /api/agent/script/`: 结合 IP 白名单校验请求源; 返回脚本文本,节点直接 `python3 -` 执行。
 - **上报数据** `POST /api/agent/report/`: `Content-Type: application/json`; `bmc_ip` 支持空值或无效占位(`"null"`, `0.0.0.0`)时忽略。
-- 接口需记录归档原因(`sn_ip_changed`, `ip_reused_by_new_sn` 等)并持久化 `raw_data` 便于审计。
+- 接口需持续记录完整 `raw_data`, 便于之后审计。
 
 ## 6. 运维与安全要求
 - 基于 `.env.example` 生成 `.env`, 替换 `DJANGO_SECRET_KEY`, 合理设置 `DJANGO_ALLOWED_HOSTS`。

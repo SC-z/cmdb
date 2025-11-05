@@ -222,11 +222,6 @@
                         <i class="bi bi-list"></i>
                         <span>服务器列表</span>
                     </a>
-                    <a href="{% url 'assets:archived_server_list' %}"
-                       class="nav-link sub-item {% if request.resolver_match.url_name == 'archived_server_list' %}active{% endif %}">
-                        <i class="bi bi-archive"></i>
-                        <span>归档库</span>
-                    </a>
                     <a href="{% url 'assets:task_list' %}" class="nav-link {% if request.resolver_match.url_name == 'task_list' or request.resolver_match.url_name == 'task_detail' or request.resolver_match.url_name == 'task_create' %}active{% endif %}">
                         <i class="bi bi-terminal"></i>
                         <span>任务列表</span>

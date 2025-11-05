@@ -2,10 +2,10 @@ import json
 from django.test import TestCase
 from django.urls import reverse
 
-from .models import ArchivedHardwareInfo, ArchivedServer, HardwareInfo, Server
+from .models import HardwareInfo, Server
 
 
-class AgentReportArchivingTests(TestCase):
+class AgentReportTests(TestCase):
     def _post_report(self, sn, ip, hostname='host', logical_cores=4, bmc_ip='null'):
         payload = {
             'sn': sn,
@@ -40,9 +40,8 @@ class AgentReportArchivingTests(TestCase):
         self.assertEqual(server.sn, 'SN-001')
         self.assertEqual(server.management_ip, '10.0.0.1')
         self.assertIsNone(server.bmc_ip)
-        self.assertEqual(ArchivedServer.objects.count(), 0)
 
-    def test_sn_same_ip_changed_archives_old_record(self):
+    def test_sn_change_updates_existing_record(self):
         first = self._post_report('SN-002', '10.0.0.2', logical_cores=8, bmc_ip='192.168.0.2')
         self.assertEqual(first.status_code, 200)
         server = Server.objects.get(sn='SN-002')
@@ -53,39 +52,25 @@ class AgentReportArchivingTests(TestCase):
         response = self._post_report('SN-002', '10.0.0.3', logical_cores=12, bmc_ip='192.168.0.3')
         self.assertEqual(response.status_code, 200)
         data = response.json()
-        self.assertTrue(data['is_new'])
+        self.assertFalse(data['is_new'])
 
-        # 旧记录归档
-        archived = ArchivedServer.objects.get(sn='SN-002')
-        self.assertEqual(archived.management_ip, '10.0.0.2')
-        self.assertEqual(archived.bmc_ip, '192.168.0.2')
-        self.assertEqual(archived.archived_reason, 'sn_ip_changed')
-        archived_hw = ArchivedHardwareInfo.objects.get(archived_server=archived)
-        self.assertEqual(archived_hw.cpu_info.get('logical_cores'), 8)
+        updated_server = Server.objects.get(sn='SN-002')
+        self.assertEqual(updated_server.management_ip, '10.0.0.3')
+        self.assertEqual(updated_server.bmc_ip, '192.168.0.3')
+        self.assertEqual(updated_server.hardware.cpu_info.get('logical_cores'), 12)
 
-        # 新记录生效
-        new_server = Server.objects.get(sn='SN-002')
-        self.assertEqual(new_server.management_ip, '10.0.0.3')
-        self.assertEqual(new_server.bmc_ip, '192.168.0.3')
-        self.assertEqual(new_server.hardware.cpu_info.get('logical_cores'), 12)
-
-    def test_ip_same_sn_changed_archives_old_ip(self):
+    def test_ip_reuse_updates_existing_record(self):
         self._post_report('SN-100', '10.0.0.10', bmc_ip='10.1.0.10')
         response = self._post_report('SN-200', '10.0.0.10', bmc_ip='10.1.0.11')
         self.assertEqual(response.status_code, 200)
         data = response.json()
-        self.assertTrue(data['is_new'])
+        self.assertFalse(data['is_new'])
 
         self.assertEqual(Server.objects.count(), 1)
         new_server = Server.objects.first()
         self.assertEqual(new_server.sn, 'SN-200')
+        self.assertEqual(new_server.management_ip, '10.0.0.10')
         self.assertEqual(new_server.bmc_ip, '10.1.0.11')
-
-        archived = ArchivedServer.objects.get(original_server_id__isnull=False)
-        self.assertEqual(archived.archived_reason, 'ip_reused_by_new_sn')
-        self.assertEqual(archived.sn, 'SN-100')
-        self.assertEqual(archived.management_ip, '10.0.0.10')
-        self.assertEqual(archived.bmc_ip, '10.1.0.10')
 
     def test_same_sn_and_ip_updates_without_archiving(self):
         self._post_report('SN-500', '10.0.0.50', logical_cores=2, bmc_ip='10.2.0.50')
@@ -101,7 +86,6 @@ class AgentReportArchivingTests(TestCase):
         self.assertGreater(server.last_report_time, initial_report_time)
         self.assertEqual(server.hardware.cpu_info.get('logical_cores'), 4)
         self.assertIsNone(server.bmc_ip)
-        self.assertEqual(ArchivedServer.objects.count(), 0)
 
     def test_bmc_ip_saved_and_cleared(self):
         self._post_report('SN-700', '10.0.0.70', bmc_ip='172.16.0.10')
@@ -116,3 +100,21 @@ class AgentReportArchivingTests(TestCase):
         self._post_report('SN-710', '10.0.0.71', bmc_ip='invalid-value')
         server = Server.objects.get(sn='SN-710')
         self.assertIsNone(server.bmc_ip)
+
+    def test_placeholder_server_is_reused_without_archiving(self):
+        temp_server = Server.objects.create(
+            sn='TEMP-10.0.0.80',
+            hostname='',
+            management_ip='10.0.0.80',
+            status='unknown'
+        )
+
+        response = self._post_report('SN-800', '10.0.0.80', bmc_ip='192.168.20.10')
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertFalse(data['is_new'])
+
+        temp_server.refresh_from_db()
+        self.assertEqual(temp_server.sn, 'SN-800')
+        self.assertEqual(temp_server.bmc_ip, '192.168.20.10')
+        self.assertEqual(Server.objects.count(), 1)
