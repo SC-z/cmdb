@@ -519,6 +519,17 @@ class SystemConfig(models.Model):
     单例模式确保全局只有一条配置记录,通过get_config()类方法获取。
     """
 
+    # ==================== 基础配置字段 ====================
+
+    # CMDB服务器地址
+    # Agent上报数据的接口地址,用于生成Agent脚本和Cron任务
+    server_base_url = models.CharField(
+        'CMDB服务器地址',
+        max_length=200,
+        default='http://localhost:8000',
+        help_text='Agent上报数据的接口地址,如 http://192.168.1.100:8000'
+    )
+
     # ==================== 白名单配置字段 ====================
 
     # 允许访问的IP地址和网段

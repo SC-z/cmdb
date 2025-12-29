@@ -20,22 +20,7 @@ from django.http import JsonResponse, HttpResponse, HttpResponseForbidden
 from django.views import View
 from django.conf import settings
 from .models import Server, HardwareInfo, SystemConfig
-
-def normalize_optional_ip(value):
-    """将可选IP字符串规范化,无效值返回None。"""
-    if value is None:
-        return None
-    if isinstance(value, str):
-        trimmed = value.strip()
-        if not trimmed or trimmed.lower() == 'null':
-            return None
-        try:
-            ipaddress.ip_address(trimmed)
-        except ValueError:
-            return None
-        return trimmed
-    return None
-
+from .services import ServerService
 
 @csrf_exempt
 def agent_report(request):
@@ -48,49 +33,6 @@ def agent_report(request):
     请求格式:
         POST /api/agent/report/
         Content-Type: application/json
-
-    请求体结构:
-        {
-            "sn": "服务器序列号",
-            "management_ip": "管理IP地址",
-            "bmc_ip": "可选BMC/IPMI地址",
-            "hostname": "主机名",
-            "hardware_info": {
-                "cpu": {
-                    "model": "CPU型号",
-                    "architecture": "架构",
-                    "physical_cores": 物理核心数,
-                    "logical_cores": 逻辑核心数
-                },
-                "memory": {
-                    "modules": [内存条列表],
-                    "total_gb": 总内存GB数
-                },
-                "disks": [磁盘列表]
-            }
-        }
-
-    响应格式:
-        成功 (200): {"status": "success", "is_new": true/false, "server_id": 123, "message": "消息"}
-        失败 (4xx/5xx): {"error": "错误信息", "status": "error"}
-
-    Args:
-        request: Django的HttpRequest对象
-
-    Returns:
-        JsonResponse: JSON格式的响应数据
-
-    安全考虑:
-        - 使用@csrf_exempt禁用CSRF保护（因为Agent无法获取CSRF token）
-        - 验证必填字段防止恶意数据
-        - 限制HTTP方法为POST
-
-    业务逻辑:
-        1. 验证请求数据格式和必填字段
-        2. 根据IP地址查找或创建服务器记录
-        3. 更新服务器状态和最后上报时间
-        4. 处理硬件信息数据
-        5. 返回处理结果
     """
     # ==================== 请求方法验证 ====================
 
@@ -123,98 +65,9 @@ def agent_report(request):
                 'status': 'error'
             }, status=400)
 
-        # 获取可选字段
-        hostname = data.get('hostname', '')
-        bmc_ip_provided = 'bmc_ip' in data
-        bmc_ip = normalize_optional_ip(data.get('bmc_ip')) if bmc_ip_provided else None
-        hardware_info = data.get('hardware_info', {})
-
-        # ==================== 服务器记录处理 ====================
-
-        # 查找或创建服务器记录
-        # 优先使用IP地址查找,避免临时SN导致重复记录
-        is_new = False  # 标记是否为新服务器
-
-        now = timezone.now()
-
-        with transaction.atomic():
-            server_by_ip = (
-                Server.objects.select_for_update()
-                .filter(management_ip=management_ip)
-                .order_by('-updated_at')
-                .first()
-            )
-            server_by_sn = (
-                Server.objects.select_for_update()
-                .filter(sn=sn)
-                .order_by('-updated_at')
-                .first()
-            )
-
-            server = None
-            is_new = False
-
-            if server_by_sn:
-                server = server_by_sn
-                if server_by_ip and server_by_ip.id != server.id:
-                    server_by_ip.delete()
-            elif server_by_ip:
-                server = server_by_ip
-            else:
-                server = Server.objects.create(
-                    sn=sn,
-                    hostname=hostname,
-                    management_ip=management_ip,
-                    bmc_ip=bmc_ip if bmc_ip_provided else None,
-                    status='online',
-                    last_report_time=now
-                )
-                is_new = True
-
-            if not is_new:
-                server.sn = sn
-                server.hostname = hostname
-                if server.management_ip != management_ip:
-                    server.management_ip = management_ip
-                if bmc_ip_provided:
-                    server.bmc_ip = bmc_ip
-                server.status = 'online'
-                server.last_report_time = now
-                update_fields = ['sn', 'hostname', 'management_ip', 'status', 'last_report_time']
-                if bmc_ip_provided:
-                    update_fields.append('bmc_ip')
-                server.save(update_fields=update_fields)
-
-        # ==================== 硬件信息处理 ====================
-
-        # 处理v2.0数据结构的硬件信息
-        if hardware_info:
-            # 提取CPU信息
-            cpu_info = hardware_info.get('cpu', {})
-
-            # 提取内存信息
-            memory_info = hardware_info.get('memory', {})
-            memory_modules = memory_info.get('modules', [])  # 内存条详细信息列表
-            memory_total_gb = memory_info.get('total_gb', 0)  # 总内存容量
-
-            # 提取磁盘信息
-            disks = hardware_info.get('disks', [])  # 磁盘设备列表
-
-            # 准备硬件信息数据
-            hw_data = {
-                'cpu_info': cpu_info,
-                'memory_modules': memory_modules,
-                'memory_total_gb': memory_total_gb,
-                'disks': disks,
-                'raw_data': data  # 保存完整的原始数据,用于调试
-            }
-
-            # 使用update_or_create方法更新或创建硬件信息记录
-            # 这样可以确保每台服务器只有一条硬件信息记录
-            HardwareInfo.objects.update_or_create(
-                server=server,
-                defaults=hw_data
-            )
+        # ==================== 业务逻辑委托给Service ====================
+        
+        server, is_new = ServerService.process_agent_report(data)
 
         # ==================== 响应返回 ====================
 

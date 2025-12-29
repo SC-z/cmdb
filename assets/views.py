@@ -5,7 +5,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 
-from .forms import ExecutionTaskForm
+from .forms import ExecutionTaskForm, AddServerForm, SystemSettingsForm
 from .execution import (
     calculate_next_run,
     create_run_for_task,
@@ -120,164 +120,59 @@ def add_server_view(request):
 
     Returns:
         HttpResponse: GET请求返回添加表单页面,POST请求处理完成后重定向
-
-    模板: add_server.html
-
-    表单字段:
-        - management_ip: 管理IP地址（必填）
-        - ssh_username: SSH用户名（必填）
-        - ssh_password: SSH密码（必填）
-        - ssh_port: SSH端口（可选,默认22）
-        - hostname: 主机名（可选）
     """
-    # ==================== POST请求处理 ====================
-
     if request.method == 'POST':
-        # 获取并清理表单数据
-        management_ip = request.POST.get('management_ip', '').strip()
-        ssh_username = request.POST.get('ssh_username', '').strip()
-        ssh_password = request.POST.get('ssh_password', '').strip()
-        ssh_port = request.POST.get('ssh_port', '22').strip()
-        hostname = request.POST.get('hostname', '').strip()
-        bmc_ip_raw = request.POST.get('bmc_ip', '').strip()
-        bmc_ip_value = None
-
-        # ==================== 数据验证阶段 ====================
-
-        # 1. 必填字段验证
-        # 确保关键信息都已填写,这是创建服务器的最低要求
-        if not all([management_ip, ssh_username, ssh_password]):
-            messages.error(
-                request,
-                '请填写所有必填字段（管理IP、SSH用户名、SSH密码）'
+        form = AddServerForm(request.POST)
+        if form.is_valid():
+            management_ip = form.cleaned_data['management_ip']
+            ssh_username = form.cleaned_data['ssh_username']
+            ssh_password = form.cleaned_data['ssh_password']
+            ssh_port = form.cleaned_data['ssh_port']
+            hostname = form.cleaned_data['hostname']
+            bmc_ip = form.cleaned_data['bmc_ip']
+            
+            # SSH连接测试
+            messages.info(request, f'正在测试SSH连接到 {management_ip}:{ssh_port}...')
+            ssh_success, ssh_message = test_ssh_connection(
+                management_ip, ssh_port, ssh_username, ssh_password
             )
-            return render(request, 'add_server.html')
-
-        # 2. IP地址格式验证
-        # 使用Python标准库验证IP地址格式的有效性
-        try:
-            ipaddress.ip_address(management_ip)
-        except ValueError:
-            messages.error(
-                request,
-                f'IP地址格式错误: {management_ip},请输入正确的IPv4或IPv6地址'
-            )
-            return render(request, 'add_server.html')
-
-        # 3. 可选BMC IP格式验证
-        if bmc_ip_raw:
+            
+            if not ssh_success:
+                messages.error(request, f'SSH连接失败: {ssh_message},服务器未添加到数���库')
+                return render(request, 'add_server.html', {'form': form})
+            
             try:
-                ipaddress.ip_address(bmc_ip_raw)
-                bmc_ip_value = bmc_ip_raw
-            except ValueError:
-                messages.error(
-                    request,
-                    f'BMC IP地址格式错误: {bmc_ip_raw},请输入正确的IPv4或IPv6地址'
+                # 创建服务器对象
+                server = Server.objects.create(
+                    sn=f'TEMP-{management_ip}',
+                    hostname=hostname,
+                    management_ip=management_ip,
+                    bmc_ip=bmc_ip,
+                    ssh_username=ssh_username,
+                    ssh_port=ssh_port,
+                    status='unknown'
                 )
-                return render(request, 'add_server.html')
+                server.set_ssh_password(ssh_password)
+                server.save()
+                
+                # Agent部署
+                messages.info(request, f'SSH连接成功,正在部署Agent...')
+                deploy_success, deploy_message = deploy_agent_to_server(server)
+                
+                if deploy_success:
+                    messages.success(request, f'✓ 服务器 {management_ip} 添加成功,Agent部署成功！')
+                else:
+                    messages.warning(request, f'⚠ 服务器 {management_ip} 已添加,但Agent部署失败: {deploy_message}')
+                
+                return redirect('assets:server_list')
+                
+            except Exception as e:
+                messages.error(request, f'创建服务器记录失败: {str(e)}')
+                return render(request, 'add_server.html', {'form': form})
+    else:
+        form = AddServerForm()
 
-        # 4. SSH端口号验证
-        # 确保端口号在有效范围内（1-65535）
-        try:
-            ssh_port_int = int(ssh_port)
-            if not (1 <= ssh_port_int <= 65535):
-                raise ValueError('端口号超出范围')
-        except ValueError:
-            messages.error(
-                request,
-                f'SSH端口号错误: {ssh_port},请输入1-65535之间的数字'
-            )
-            return render(request, 'add_server.html')
-
-        # 5. IP地址唯一性检查
-        # 防止重复添加同一台服务器
-        if Server.objects.filter(management_ip=management_ip).exists():
-            messages.error(
-                request,
-                f'IP地址 {management_ip} 已存在,请勿重复添加'
-            )
-            return render(request, 'add_server.html')
-
-        # ==================== SSH连接测试阶段 ====================
-
-        # 6. 在创建数据库记录之前先测试SSH连接
-        # 这样可以避免因为连接问题导致数据库中产生无效记录
-        messages.info(
-            request,
-            f'正在测试SSH连接到 {management_ip}:{ssh_port_int}...'
-        )
-
-        ssh_success, ssh_message = test_ssh_connection(
-            management_ip,
-            ssh_port_int,
-            ssh_username,
-            ssh_password
-        )
-
-        # 如果SSH连接失败,显示错误信息但不创建记录
-        if not ssh_success:
-            messages.error(
-                request,
-                f'SSH连接失败: {ssh_message},服务器未添加到数据库'
-            )
-            return render(request, 'add_server.html')
-
-        # ==================== 数据库记录创建阶段 ====================
-
-        # 7. SSH测试成功,创建服务器记录
-        try:
-            # 创建服务器对象
-            server = Server.objects.create(
-                sn=f'TEMP-{management_ip}',  # 临时序列号,等待Agent上报真实SN
-                hostname=hostname,
-                management_ip=management_ip,
-                bmc_ip=bmc_ip_value,
-                ssh_username=ssh_username,
-                ssh_port=ssh_port_int,
-                status='unknown'  # 初始状态为未知
-            )
-
-            # 设置SSH密码（Base64编码存储）
-            server.set_ssh_password(ssh_password)
-            server.save()
-
-            # ==================== Agent部署阶段 ====================
-
-            # 8. 自动部署数据采集Agent
-            messages.info(
-                request,
-                f'SSH连接成功,正在部署Agent...'
-            )
-
-            deploy_success, deploy_message = deploy_agent_to_server(server)
-
-            # 根据部署结果显示不同的提示信息
-            if deploy_success:
-                messages.success(
-                    request,
-                    f'✓ 服务器 {management_ip} 添加成功,Agent部署成功！'
-                )
-            else:
-                messages.warning(
-                    request,
-                    f'⚠ 服务器 {management_ip} 已添加,但Agent部署失败: {deploy_message}'
-                )
-
-            # 操作完成,重定向到服务器列表页面
-            return redirect('assets:server_list')
-
-        except Exception as e:
-            # 数据库操作异常处理
-            messages.error(
-                request,
-                f'创建服务器记录失败: {str(e)}'
-            )
-            return render(request, 'add_server.html')
-
-    # ==================== GET请求处理 ====================
-
-    # 如果是GET请求,直接显示添加服务器表单页面
-    return render(request, 'add_server.html')
+    return render(request, 'add_server.html', {'form': form})
 
 
 def server_detail_view(request, server_id):
@@ -386,102 +281,61 @@ def bulk_server_action_view(request):
 def system_settings_view(request):
     """
     系统设置页面视图
-
-    管理CMDB系统的全局配置,包括：
-    1. IP白名单配置（控制Agent脚本访问权限）
-    2. 定时任务Cron表达式配置
-    3. 批量更新服务器定时任务
-    4. 系统统计信息展示
-
-    展示了Django视图如何处理复杂的表单操作和系统管理功能。
-
-    Args:
-        request: Django的HttpRequest对象
-
-    Returns:
-        HttpResponse: 渲染后的系统设置页面
-
-    模板: system_settings.html
-    上下文变量:
-        - config: 系统配置对象
-        - total_servers: 服务器总数
-        - deployed_servers: 已部署Agent的服务器数量
+    ...
+    (Docstring updated to reflect Form usage)
     """
-    # 获取系统配置（使用单例模式）
     config = SystemConfig.get_config()
 
-    # ==================== POST请求处理 ====================
-
     if request.method == 'POST':
-        # 获取操作类型标识
         action = request.POST.get('action')
 
         if action == 'update_config':
-            # ==================== 配置更新操作 ====================
-
-            # 更新IP白名单配置
-            config.allowed_networks = request.POST.get('allowed_networks', '')
-
-            # 更新Cron表达式
-            config.cron_expression = request.POST.get('cron_expression', '0 * * * *')
-
-            # 更新定时任务描述
-            config.cron_description = request.POST.get('cron_description', '')
-
-            # 保存配置到数据库
-            config.save()
-
-            # 添加成功提示消息
-            messages.success(request, '配置更新成功')
-
+            form = SystemSettingsForm(request.POST, instance=config)
+            if form.is_valid():
+                form.save()
+                messages.success(request, '配置更新成功')
+            else:
+                 messages.error(request, '配置更新失败，请检查输入')
+        
         elif action == 'update_all_cron':
-            # ==================== 批量更新定时任务操作 ====================
-
-            # 初始化计数器
-            success_count = 0  # 成功更新的服务器数量
-            fail_count = 0     # 更新失败的服务器数量
-
-            # 获取所有已部署Agent的服务器
+            # 批量更新逻辑保持不变，但可以从config中获取最新的cron表达式
+            success_count = 0
+            fail_count = 0
             servers = Server.objects.filter(agent_deployed=True)
 
-            # 逐个更新服务器的定时任务
             for server in servers:
                 try:
-                    # 调用工具函数更新单个服务器的Cron任务
-                    success = update_server_cron(server, config.cron_expression)
-
+                    # 重新从数据库获取最新配置，确保使用刚保存的值
+                    current_config = SystemConfig.get_config()
+                    success = update_server_cron(server, current_config.cron_expression)
                     if success:
                         success_count += 1
                     else:
                         fail_count += 1
-
-                except Exception as e:
-                    # 异常处理,记录失败数量
+                except Exception:
                     fail_count += 1
 
-            # 显示批量更新结果
             messages.success(
                 request,
                 f'定时任务更新完成：成功 {success_count} 台,失败 {fail_count} 台'
             )
 
-        # 操作完成后重定向,防止表单重复提交
         return redirect('assets:system_settings')
 
-    # ==================== GET请求处理 ====================
+    else:
+        form = SystemSettingsForm(instance=config)
 
-    # 计算系统统计信息
-    total_servers = Server.objects.count()  # 服务器总数
-    deployed_servers = Server.objects.filter(agent_deployed=True).count()  # 已部署Agent的服务器数
+    # 计算统计信息
+    total_servers = Server.objects.count()
+    deployed_servers = Server.objects.filter(agent_deployed=True).count()
 
-    # 准备模板上下文
     context = {
-        'config': config,  # 系统配置对象
-        'total_servers': total_servers,  # 服务器总数
-        'deployed_servers': deployed_servers,  # 已部署Agent的服务器数
+        'form': form, # 传递form而不是config对象，template需要调整
+        'config': config, # 保留config以便template中其他部分使用（如updated_at）
+        'total_servers': total_servers,
+        'deployed_servers': deployed_servers,
     }
 
-    # 渲染系统设置页面
     return render(request, 'system_settings.html', context)
 
 

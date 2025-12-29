@@ -20,30 +20,39 @@
                 <form method="post">
                     {% csrf_token %}
 
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {% for error in form.non_field_errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+
                     <div class="mb-3">
-                        <label for="management_ip" class="form-label">
-                            管理IP <span class="text-danger">*</span>
+                        <label for="{{ form.management_ip.id_for_label }}" class="form-label">
+                            {{ form.management_ip.label }} <span class="text-danger">*</span>
                         </label>
-                        <input type="text" class="form-control" id="management_ip"
-                               name="management_ip" required
-                               placeholder="例如:192.168.1.100">
-                        <!-- <div class="form-text">服务器的管理IP地址</div> -->
+                        {{ form.management_ip }}
+                        {% if form.management_ip.errors %}
+                            <div class="text-danger small">{{ form.management_ip.errors.0 }}</div>
+                        {% endif %}
                     </div>
 
                     <div class="mb-3">
-                        <label for="bmc_ip" class="form-label">BMC IP（可选）</label>
-                        <input type="text" class="form-control" id="bmc_ip"
-                               name="bmc_ip"
-                               placeholder="例如:10.10.1.50">
+                        <label for="{{ form.bmc_ip.id_for_label }}" class="form-label">{{ form.bmc_ip.label }}</label>
+                        {{ form.bmc_ip }}
+                        {% if form.bmc_ip.errors %}
+                            <div class="text-danger small">{{ form.bmc_ip.errors.0 }}</div>
+                        {% endif %}
                         <div class="form-text">若服务器具备IPMI/带外管理口,可在此记录</div>
                     </div>
 
                     <div class="mb-3">
-                        <label for="hostname" class="form-label">主机名（可选）</label>
-                        <input type="text" class="form-control" id="hostname"
-                               name="hostname"
-                               placeholder="例如: web-server-01">
-                        <!-- <div class="form-text">可选,Agent上报后会自动更新</div> -->
+                        <label for="{{ form.hostname.id_for_label }}" class="form-label">{{ form.hostname.label }}</label>
+                        {{ form.hostname }}
+                        {% if form.hostname.errors %}
+                            <div class="text-danger small">{{ form.hostname.errors.0 }}</div>
+                        {% endif %}
                     </div>
 
                     <hr>
@@ -51,29 +60,32 @@
                     <h5 class="mb-3">SSH连接信息</h5>
 
                     <div class="mb-3">
-                        <label for="ssh_username" class="form-label">
-                            SSH用户名 <span class="text-danger">*</span>
+                        <label for="{{ form.ssh_username.id_for_label }}" class="form-label">
+                            {{ form.ssh_username.label }} <span class="text-danger">*</span>
                         </label>
-                        <input type="text" class="form-control" id="ssh_username"
-                               name="ssh_username" required
-                               placeholder="例如:root">
-                        <!-- <div class="form-text">用于SSH连接和部署Agent</div> -->
+                        {{ form.ssh_username }}
+                        {% if form.ssh_username.errors %}
+                            <div class="text-danger small">{{ form.ssh_username.errors.0 }}</div>
+                        {% endif %}
                     </div>
 
                     <div class="mb-3">
-                        <label for="ssh_password" class="form-label">
-                            SSH密码 <span class="text-danger">*</span>
+                        <label for="{{ form.ssh_password.id_for_label }}" class="form-label">
+                            {{ form.ssh_password.label }} <span class="text-danger">*</span>
                         </label>
-                        <input type="password" class="form-control" id="ssh_password"
-                               name="ssh_password" required
-                               placeholder="请输入SSH密码">
+                        {{ form.ssh_password }}
+                        {% if form.ssh_password.errors %}
+                            <div class="text-danger small">{{ form.ssh_password.errors.0 }}</div>
+                        {% endif %}
                         <div class="form-text">密码将使用Base64编码存储</div>
                     </div>
 
                     <div class="mb-3">
-                        <label for="ssh_port" class="form-label">SSH端口</label>
-                        <input type="number" class="form-control" id="ssh_port"
-                               name="ssh_port" value="22">
+                        <label for="{{ form.ssh_port.id_for_label }}" class="form-label">{{ form.ssh_port.label }}</label>
+                        {{ form.ssh_port }}
+                        {% if form.ssh_port.errors %}
+                            <div class="text-danger small">{{ form.ssh_port.errors.0 }}</div>
+                        {% endif %}
                         <div class="form-text">默认为22</div>
                     </div>
 

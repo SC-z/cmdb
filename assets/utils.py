@@ -21,9 +21,34 @@
 import os
 import socket
 import paramiko
+import ipaddress
 from contextlib import contextmanager
 from django.conf import settings
 from django.utils import timezone
+
+
+def normalize_optional_ip(value):
+    """
+    将可选IP字符串规范化,无效值返回None。
+    
+    Args:
+        value (str): 输入的IP字符串
+        
+    Returns:
+        str or None: 规范化后的IP字符串或None
+    """
+    if value is None:
+        return None
+    if isinstance(value, str):
+        trimmed = value.strip()
+        if not trimmed or trimmed.lower() == 'null':
+            return None
+        try:
+            ipaddress.ip_address(trimmed)
+        except ValueError:
+            return None
+        return trimmed
+    return None
 
 
 def get_local_ip():
@@ -249,7 +274,13 @@ def deploy_agent_to_server(server):
             config = SystemConfig.get_config()
 
             # 构建CMDB服务器URL
-            cmdb_server_url = f"http://{get_local_ip()}:8000"
+            # 使用配置中的URL,如果未配置则回退到自动检测
+            cmdb_server_url = config.server_base_url.rstrip('/')
+            if not cmdb_server_url or cmdb_server_url == 'http://localhost:8000':
+                 # 尝试自动检测真实IP作为默认值
+                 current_ip = get_local_ip()
+                 if current_ip != '127.0.0.1':
+                     cmdb_server_url = f"http://{current_ip}:8000"
 
             # 生成cron任务配置内容
             cron_content = generate_cron_content(
@@ -339,8 +370,16 @@ def update_server_cron(server, cron_expression):
     try:
         # 使用较短的超时时间,因为只是文件操作
         with ssh_connection(server, timeout=10) as ssh:
+            # 获取系统配置
+            from .models import SystemConfig
+            config = SystemConfig.get_config()
+            
             # 构建CMDB服务器URL
-            cmdb_server_url = f"http://{get_local_ip()}:8000"
+            cmdb_server_url = config.server_base_url.rstrip('/')
+            if not cmdb_server_url or cmdb_server_url == 'http://localhost:8000':
+                 current_ip = get_local_ip()
+                 if current_ip != '127.0.0.1':
+                     cmdb_server_url = f"http://{current_ip}:8000"
 
             # 生成新的cron配置内容
             cron_content = generate_cron_content(cron_expression, cmdb_server_url)

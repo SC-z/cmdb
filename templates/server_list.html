@@ -54,13 +54,15 @@
             <div class="card-body">
                 <form method="post" action="{% url 'assets:server_bulk_action' %}" id="serverBulkForm">
                     {% csrf_token %}
+                    <input type="hidden" name="action" id="bulkActionInput" value="">
                     <div class="d-flex flex-wrap align-items-center justify-content-between mb-3">
                         <div class="d-flex align-items-center gap-2">
-                    <button type="submit" name="action" value="delete"
-                            class="btn btn-outline-danger btn-sm bulk-action-button"
-                            {% if perms.assets.delete_server %}disabled data-requires-selection="true"{% else %}disabled data-locked="true"{% endif %}>
-                        <i class="bi bi-trash"></i> 删除
-                    </button>
+                            <button type="button" id="btnBulkDelete"
+                                    class="btn btn-outline-danger btn-sm bulk-action-button"
+                                    onclick="submitBulkDelete()"
+                                    {% if perms.assets.delete_server %}disabled data-requires-selection="true"{% else %}disabled data-locked="true"{% endif %}>
+                                <i class="bi bi-trash"></i> 删除
+                            </button>
                         </div>
                         <div class="text-muted small">
                             共 <strong>{{ servers|length }}</strong> 台服务器
@@ -161,38 +163,63 @@ function deleteServer(serverId, serverSn) {
     }
 }
 
+function submitBulkDelete() {
+    if (confirm('确定要删除选中的服务器吗？\n此操作不可恢复。')) {
+        var actionInput = document.getElementById('bulkActionInput');
+        var form = document.getElementById('serverBulkForm');
+        
+        if (actionInput && form) {
+            actionInput.value = 'delete';
+            form.submit();
+        } else {
+            console.error('Form or Action Input not found');
+            alert('操作失败：无法找到表单元素。');
+        }
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function () {
     var selectAll = document.getElementById('selectAllServers');
     var checkboxes = document.querySelectorAll('.server-row-checkbox');
     var bulkButtons = document.querySelectorAll('.bulk-action-button');
 
     function toggleBulkButtons() {
-        var hasChecked = Array.from(checkboxes).some(function (cb) { return cb.checked; });
-        bulkButtons.forEach(function (btn) {
-            if (btn.dataset.locked === 'true') {
-                return;
+        var hasChecked = false;
+        // 使用普通循环替代 Array.from/some 以兼容旧浏览器
+        for (var i = 0; i < checkboxes.length; i++) {
+            if (checkboxes[i].checked) {
+                hasChecked = true;
+                break;
+            }
+        }
+        
+        for (var i = 0; i < bulkButtons.length; i++) {
+            var btn = bulkButtons[i];
+            // 使用 getAttribute 获取 data 属性更安全
+            if (btn.getAttribute('data-locked') === 'true') {
+                continue;
             }
             btn.disabled = !hasChecked;
-        });
+        }
     }
 
     if (selectAll) {
         selectAll.addEventListener('change', function () {
-            checkboxes.forEach(function (cb) {
-                cb.checked = selectAll.checked;
-            });
+            for (var i = 0; i < checkboxes.length; i++) {
+                checkboxes[i].checked = selectAll.checked;
+            }
             toggleBulkButtons();
         });
     }
 
-    checkboxes.forEach(function (cb) {
-        cb.addEventListener('change', function () {
-            if (!cb.checked && selectAll && selectAll.checked) {
+    for (var i = 0; i < checkboxes.length; i++) {
+        checkboxes[i].addEventListener('change', function () {
+            if (!this.checked && selectAll && selectAll.checked) {
                 selectAll.checked = false;
             }
             toggleBulkButtons();
         });
-    });
+    }
 
     toggleBulkButtons();
 });

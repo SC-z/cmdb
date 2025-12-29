@@ -303,7 +303,7 @@
         <a href="{% url 'assets:server_list' %}" class="btn btn-secondary">
             <i class="bi bi-arrow-left"></i> 返回列表
         </a>
-        <button type="button" class="btn btn-danger" onclick="deleteServer()">
+        <button type="button" class="btn btn-danger" id="btnDeleteServer">
             <i class="bi bi-trash"></i> 删除服务器
         </button>
     </div>
@@ -317,10 +317,15 @@
 
 {% block extra_js %}
 <script>
-function deleteServer() {
-    if (confirm('确定要删除服务器 {{ server.sn }} 吗？\n删除后数据将无法恢复！')) {
-        document.getElementById('deleteForm').submit();
+document.addEventListener('DOMContentLoaded', function() {
+    var deleteBtn = document.getElementById('btnDeleteServer');
+    if (deleteBtn) {
+        deleteBtn.addEventListener('click', function() {
+            if (confirm('确定要删除服务器 {{ server.sn }} 吗？\n删除后数据将无法恢复！')) {
+                document.getElementById('deleteForm').submit();
+            }
+        });
     }
-}
+});
 </script>
 {% endblock %}

@@ -49,21 +49,46 @@
                     {% csrf_token %}
                     <input type="hidden" name="action" value="update_config">
 
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {% for error in form.non_field_errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+
                     <div class="mb-4">
-                        <label class="form-label">IP 白名单</label>
-                        <textarea class="form-control font-monospace" name="allowed_networks" rows="6" placeholder="10.10.90.0/24&#10;192.168.1.100">{{ config.allowed_networks }}</textarea>
+                        <label class="form-label">{{ form.server_base_url.label }}</label>
+                        {{ form.server_base_url }}
+                        {% if form.server_base_url.errors %}
+                            <div class="text-danger small">{{ form.server_base_url.errors.0 }}</div>
+                        {% endif %}
+                        <div class="form-text">Agent 将向此地址上报数据。修改端口或域名时请更新此项。</div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label">{{ form.allowed_networks.label }}</label>
+                        {{ form.allowed_networks }}
+                        {% if form.allowed_networks.errors %}
+                            <div class="text-danger small">{{ form.allowed_networks.errors.0 }}</div>
+                        {% endif %}
                         <div class="form-text">每行一个 IP 或 CIDR,支持使用 # 注释。</div>
                     </div>
 
                     <div class="row g-3 align-items-end">
                         <div class="col-md-6">
-                            <label class="form-label">Cron 定时表达式</label>
-                            <input type="text" class="form-control font-monospace" name="cron_expression" value="{{ config.cron_expression }}" required>
-                            <!-- <div class="form-text">示例：0 * * * * 或 */30 * * * *</div> -->
+                            <label class="form-label">{{ form.cron_expression.label }}</label>
+                            {{ form.cron_expression }}
+                             {% if form.cron_expression.errors %}
+                                <div class="text-danger small">{{ form.cron_expression.errors.0 }}</div>
+                            {% endif %}
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label">任务说明（可选）</label>
-                            <input type="text" class="form-control" name="cron_description" value="{{ config.cron_description }}" placeholder="例如：每小时执行一次">
+                            <label class="form-label">{{ form.cron_description.label }}</label>
+                            {{ form.cron_description }}
+                             {% if form.cron_description.errors %}
+                                <div class="text-danger small">{{ form.cron_description.errors.0 }}</div>
+                            {% endif %}
                         </div>
                     </div>
 

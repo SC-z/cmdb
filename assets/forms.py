@@ -1,10 +1,74 @@
 from django import forms
 from django.utils import timezone
+import ipaddress
+from .models import ExecutionTask, Server, SystemConfig
 
-from .models import ExecutionTask, Server
+class BootstrapFormMixin:
+    """Mixin to add Bootstrap classes to form fields."""
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for name, field in self.fields.items():
+            widget = field.widget
+            if isinstance(widget, (forms.RadioSelect, forms.CheckboxSelectMultiple, forms.CheckboxInput)):
+                continue
+            existing = widget.attrs.get("class", "")
+            base_class = "form-select" if isinstance(widget, forms.Select) else "form-control"
+            classes = set(existing.split()) if existing else set()
+            classes.add(base_class)
+            widget.attrs["class"] = " ".join(sorted(classes))
+
+class AddServerForm(BootstrapFormMixin, forms.ModelForm):
+    """Form for adding a new server."""
+    
+    ssh_password = forms.CharField(label='SSH密码', widget=forms.PasswordInput)
+
+    class Meta:
+        model = Server
+        fields = ['management_ip', 'ssh_username', 'ssh_password', 'ssh_port', 'hostname', 'bmc_ip']
+        widgets = {
+            'ssh_password': forms.PasswordInput(),
+        }
+
+    def clean_management_ip(self):
+        ip = self.cleaned_data['management_ip']
+        try:
+            ipaddress.ip_address(ip)
+        except ValueError:
+            raise forms.ValidationError('请输入正确的IPv4或IPv6地址')
+        
+        if Server.objects.filter(management_ip=ip).exists():
+            raise forms.ValidationError(f'IP地址 {ip} 已存在')
+        return ip
+
+    def clean_bmc_ip(self):
+        ip = self.cleaned_data.get('bmc_ip')
+        if ip:
+            try:
+                ipaddress.ip_address(ip)
+            except ValueError:
+                raise forms.ValidationError('请输入正确的IPv4或IPv6地址')
+        return ip
+
+    def clean_ssh_port(self):
+        port = self.cleaned_data['ssh_port']
+        if not (1 <= port <= 65535):
+            raise forms.ValidationError('端口号必须在1-65535之间')
+        return port
 
 
-class ExecutionTaskForm(forms.ModelForm):
+class SystemSettingsForm(BootstrapFormMixin, forms.ModelForm):
+    """Form for system settings."""
+    
+    class Meta:
+        model = SystemConfig
+        fields = ['server_base_url', 'allowed_networks', 'cron_expression', 'cron_description']
+        widgets = {
+            'allowed_networks': forms.Textarea(attrs={'rows': 6, 'class': 'font-monospace'}),
+            'cron_expression': forms.TextInput(attrs={'class': 'font-monospace'}),
+        }
+
+
+class ExecutionTaskForm(BootstrapFormMixin, forms.ModelForm):
     """远程执行任务创建表单。"""
 
     execution_mode = forms.ChoiceField(
@@ -37,16 +101,6 @@ class ExecutionTaskForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
-        for name, field in self.fields.items():
-            widget = field.widget
-            if isinstance(widget, (forms.RadioSelect, forms.CheckboxSelectMultiple, forms.CheckboxInput)):
-                continue
-            existing = widget.attrs.get("class", "")
-            base_class = "form-select" if isinstance(widget, forms.Select) else "form-control"
-            classes = set(existing.split()) if existing else set()
-            classes.add(base_class)
-            widget.attrs["class"] = " ".join(sorted(classes))
 
         self.fields['servers'].queryset = Server.objects.all()
         self.should_start_immediately = False
