@@ -128,8 +128,6 @@ def add_server_view(request):
             ssh_username = form.cleaned_data['ssh_username']
             ssh_password = form.cleaned_data['ssh_password']
             ssh_port = form.cleaned_data['ssh_port']
-            hostname = form.cleaned_data['hostname']
-            bmc_ip = form.cleaned_data['bmc_ip']
             
             # SSH连接测试
             messages.info(request, f'正在测试SSH连接到 {management_ip}:{ssh_port}...')
@@ -138,16 +136,15 @@ def add_server_view(request):
             )
             
             if not ssh_success:
-                messages.error(request, f'SSH连接失败: {ssh_message},服务器未添加到数���库')
+                messages.error(request, f'SSH连接失败: {ssh_message},服务器未添加到数据库')
                 return render(request, 'add_server.html', {'form': form})
             
             try:
                 # 创建服务器对象
                 server = Server.objects.create(
                     sn=f'TEMP-{management_ip}',
-                    hostname=hostname,
+                    # hostname和bmc_ip将在Agent首次上报时更新
                     management_ip=management_ip,
-                    bmc_ip=bmc_ip,
                     ssh_username=ssh_username,
                     ssh_port=ssh_port,
                     status='unknown'

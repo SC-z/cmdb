@@ -24,7 +24,7 @@ class AddServerForm(BootstrapFormMixin, forms.ModelForm):
 
     class Meta:
         model = Server
-        fields = ['management_ip', 'ssh_username', 'ssh_password', 'ssh_port', 'hostname', 'bmc_ip']
+        fields = ['management_ip', 'ssh_username', 'ssh_password', 'ssh_port']
         widgets = {
             'ssh_password': forms.PasswordInput(),
         }
@@ -38,15 +38,6 @@ class AddServerForm(BootstrapFormMixin, forms.ModelForm):
         
         if Server.objects.filter(management_ip=ip).exists():
             raise forms.ValidationError(f'IP地址 {ip} 已存在')
-        return ip
-
-    def clean_bmc_ip(self):
-        ip = self.cleaned_data.get('bmc_ip')
-        if ip:
-            try:
-                ipaddress.ip_address(ip)
-            except ValueError:
-                raise forms.ValidationError('请输入正确的IPv4或IPv6地址')
         return ip
 
     def clean_ssh_port(self):
