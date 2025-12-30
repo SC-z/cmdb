@@ -1,6 +1,7 @@
 import json
 from django.test import TestCase
 from django.urls import reverse
+from unittest.mock import patch
 
 from .models import HardwareInfo, Server
 
@@ -176,3 +177,72 @@ class CredentialViewTests(TestCase):
         response = self.client.post(url)
         self.assertEqual(response.status_code, 302)
         self.assertFalse(Credential.objects.filter(id=self.cred.id).exists())
+
+
+class ServerOOBTests(TestCase):
+    def setUp(self):
+        self.server = Server.objects.create(
+            sn='OOB-TEST',
+            management_ip='192.168.1.100',
+            bmc_ip='192.168.1.200',
+            oob_username='admin'
+        )
+        self.server.set_oob_password('admin123')
+        self.server.save()
+        
+        self.cred = Credential.objects.create(title='OOB Cred', username='bmc_admin')
+        self.cred.set_password('bmc_pass')
+        self.cred.save()
+
+    def test_oob_update_view_manual(self):
+        url = reverse('assets:server_edit_oob', args=[self.server.id])
+        data = {
+            'bmc_ip': '192.168.1.201',
+            'oob_username': 'new_admin',
+            'oob_password_input': 'new_pass'
+        }
+        response = self.client.post(url, data)
+        self.assertEqual(response.status_code, 302)
+        
+        self.server.refresh_from_db()
+        self.assertEqual(self.server.bmc_ip, '192.168.1.201')
+        self.assertEqual(self.server.oob_username, 'new_admin')
+        self.assertEqual(self.server.get_oob_password(), 'new_pass')
+
+    def test_oob_update_view_credential(self):
+        url = reverse('assets:server_edit_oob', args=[self.server.id])
+        data = {
+            'bmc_ip': '192.168.1.200',
+            'credential': self.cred.id
+        }
+        response = self.client.post(url, data)
+        self.assertEqual(response.status_code, 302)
+        
+        self.server.refresh_from_db()
+        self.assertEqual(self.server.oob_username, 'bmc_admin')
+        self.assertEqual(self.server.get_oob_password(), 'bmc_pass')
+
+    @patch('subprocess.run')
+    def test_power_on_view(self, mock_run):
+        mock_run.return_value.returncode = 0
+        mock_run.return_value.stdout = 'Chassis Power Control: Up/On'
+        
+        url = reverse('assets:server_power_on', args=[self.server.id])
+        response = self.client.post(url)
+        self.assertEqual(response.status_code, 302)
+        
+        # Verify ipmitool arguments
+        args = mock_run.call_args[0][0]
+        self.assertIn('ipmitool', args)
+        self.assertIn('power', args)
+        self.assertIn('on', args)
+        self.assertIn(self.server.bmc_ip, args)
+
+    @patch('subprocess.run')
+    def test_power_failure(self, mock_run):
+        mock_run.return_value.returncode = 1
+        mock_run.return_value.stderr = 'Error: Connection failed'
+        
+        url = reverse('assets:server_power_off', args=[self.server.id])
+        response = self.client.post(url)
+        self.assertEqual(response.status_code, 302)

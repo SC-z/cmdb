@@ -1,11 +1,12 @@
 import ipaddress
+import subprocess
 from django.contrib import messages
 from django.db.models import Count, Prefetch, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 
-from .forms import ExecutionTaskForm, AddServerForm, SystemSettingsForm, CredentialForm
+from .forms import ExecutionTaskForm, AddServerForm, SystemSettingsForm, CredentialForm, ServerOOBForm
 from .execution import (
     calculate_next_run,
     create_run_for_task,
@@ -35,7 +36,7 @@ def server_list_view(request):
     功能特性：
     1. 显示所有服务器,按创建时间倒序排列
     2. 支持按序列号、主机名、管理IP进行模糊搜索
-    3. 支持按服务器状态进行过滤
+    3. 支持按服务器状态���行过滤
     4. 提供服务器详情和删除操作的链接
 
     Args:
@@ -67,7 +68,7 @@ def server_list_view(request):
             Q(sn__icontains=search_query) |  # 序列号包含关键词
             Q(hostname__icontains=search_query) |  # 主机名包含关键词
             Q(management_ip__icontains=search_query) |  # 管理IP包含关键词
-            Q(bmc_ip__icontains=search_query)  # BMC IP包含关键词
+            Q(bmc_ip__icontains=search_query)  # BMC IP包���关键词
         )
 
     # 如果选择了状态过滤器,按状态过滤
@@ -168,7 +169,7 @@ def add_server_view(request):
                 if deploy_success:
                     messages.success(request, f'✓ 服务器 {management_ip} 添加成功,Agent部署成功！')
                 else:
-                    messages.warning(request, f'⚠ 服务器 {management_ip} 已添加,但Agent部署失败: {deploy_message}')
+                    messages.warning(request, f'⚠ 服务器 {management_ip} ���添加,但Agent部署失败: {deploy_message}')
                 
                 return redirect('assets:server_list')
                 
@@ -287,8 +288,6 @@ def bulk_server_action_view(request):
 def system_settings_view(request):
     """
     系统设置页面视图
-    ...
-    (Docstring updated to reflect Form usage)
     """
     config = SystemConfig.get_config()
 
@@ -621,3 +620,125 @@ def credential_delete_view(request, pk):
     # 简单的确认页面或者直接通过POST删除，这里我们复用一个简单的确认模板
     context = {'object': credential, 'cancel_url': 'assets:credential_list'}
     return render(request, 'confirm_delete.html', context)
+
+
+# ==================== 带外管理视图 ====================
+
+def _execute_ipmi_command(server, command):
+    """
+    执行IPMI命令
+    command: 'on', 'off', 'reset', 'status'
+    """
+    bmc_ip = server.bmc_ip
+    username = server.oob_username
+    password = server.get_oob_password()
+
+    if not bmc_ip or not username or not password:
+        return False, "缺少带外管理配置（IP、用户名或密码）"
+
+    # 构建命令: ipmitool -I lanplus -H <ip> -U <user> -P <pass> power <command>
+    cmd_args = [
+        'ipmitool', 
+        '-I', 'lanplus', 
+        '-H', bmc_ip, 
+        '-U', username, 
+        '-P', password, 
+        'power', command
+    ]
+    
+    try:
+        # 设置超时时间为10秒，避免长时间阻塞
+        result = subprocess.run(cmd_args, capture_output=True, text=True, timeout=10)
+        
+        if result.returncode == 0:
+            return True, result.stdout.strip()
+        else:
+            # 某些情况下错误信息在stdout中
+            error_msg = result.stderr.strip() or result.stdout.strip()
+            return False, f"执行失败: {error_msg}"
+            
+    except subprocess.TimeoutExpired:
+        return False, "连接超时，请检查网络或BMC地址"
+    except FileNotFoundError:
+        return False, "未找到ipmitool命令，请联系管理员安装"
+    except Exception as e:
+        return False, str(e)
+
+def server_edit_oob_view(request, server_id):
+    """编辑服务器带外管理信息"""
+    server = get_object_or_404(Server, id=server_id)
+    
+    if request.method == 'POST':
+        form = ServerOOBForm(request.POST, instance=server)
+        if form.is_valid():
+            server = form.save(commit=False)
+            
+            credential = form.cleaned_data.get('credential')
+            password_input = form.cleaned_data.get('oob_password_input')
+            
+            # 优先使用选择的凭据
+            if credential:
+                server.oob_username = credential.username
+                server.set_oob_password(credential.get_password())
+            # 其次使用手动输入的密码（如果不为空）
+            elif password_input:
+                server.set_oob_password(password_input)
+            
+            server.save()
+            messages.success(request, '带外管理信息已更新')
+            return redirect('assets:server_detail', server_id=server.id)
+    else:
+        form = ServerOOBForm(instance=server)
+    
+    context = {
+        'form': form, 
+        'server': server,
+        'title': '配置带外管理信息'
+    }
+    # 复用通用表单模板或创建新的，这里我们将创建一个新的
+    return render(request, 'server_oob_form.html', context)
+
+def server_power_on_view(request, server_id):
+    """远程开机"""
+    if request.method != 'POST':
+        return redirect('assets:server_list')
+        
+    server = get_object_or_404(Server, id=server_id)
+    success, message = _execute_ipmi_command(server, 'on')
+    
+    if success:
+        messages.success(request, f'服务器 {server.management_ip} 开机指令发送成功')
+    else:
+        messages.error(request, f'服务器 {server.management_ip} 开机失败: {message}')
+        
+    return redirect('assets:server_list')
+
+def server_power_off_view(request, server_id):
+    """远程关机"""
+    if request.method != 'POST':
+        return redirect('assets:server_list')
+        
+    server = get_object_or_404(Server, id=server_id)
+    success, message = _execute_ipmi_command(server, 'off')
+    
+    if success:
+        messages.success(request, f'服务器 {server.management_ip} 关机指令发送成功')
+    else:
+        messages.error(request, f'服务器 {server.management_ip} 关机失败: {message}')
+        
+    return redirect('assets:server_list')
+
+def server_power_reset_view(request, server_id):
+    """远程重启"""
+    if request.method != 'POST':
+        return redirect('assets:server_list')
+        
+    server = get_object_or_404(Server, id=server_id)
+    success, message = _execute_ipmi_command(server, 'reset')
+    
+    if success:
+        messages.success(request, f'服务器 {server.management_ip} 重启指令发送成功')
+    else:
+        messages.error(request, f'服务器 {server.management_ip} 重启失败: {message}')
+        
+    return redirect('assets:server_list')

@@ -55,6 +55,12 @@ urlpatterns = [
     # 删除操作完成后重定向到服务器列表页面
     path('server/<int:server_id>/delete/', views.delete_server_view, name='delete_server'),
 
+    # 带外管理与电源控制
+    path('server/<int:server_id>/oob/edit/', views.server_edit_oob_view, name='server_edit_oob'),
+    path('server/<int:server_id>/power/on/', views.server_power_on_view, name='server_power_on'),
+    path('server/<int:server_id>/power/off/', views.server_power_off_view, name='server_power_off'),
+    path('server/<int:server_id>/power/reset/', views.server_power_reset_view, name='server_power_reset'),
+
     # 系统设置页面
     # URL: /settings/
     # 系统配置管理界面,包括IP白名单、定时任务等设置

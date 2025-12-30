@@ -119,16 +119,25 @@
                                     </td>
                                     <td><small>{{ server.created_at|date:"Y-m-d H:i:s" }}</small></td>
                                     <td class="text-nowrap">
-                                        <a href="{% url 'assets:server_detail' server.id %}"
-                                           class="btn btn-sm btn-outline-primary me-2"
-                                           title="查看详情">
-                                            查看
-                                        </a>
-                                        <!-- <button type="button" class="btn btn-sm btn-outline-danger"
-                                                onclick="deleteServer({{ server.id }}, '{{ server.sn }}')"
-                                                title="删除">
-                                            删除
-                                        </button> -->
+                                        <div class="btn-group">
+                                            <a href="{% url 'assets:server_detail' server.id %}"
+                                               class="btn btn-sm btn-outline-primary"
+                                               title="查看详情">
+                                                查看
+                                            </a>
+                                            {% if server.bmc_ip and server.oob_username %}
+                                            <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false">
+                                                <span class="visually-hidden">Toggle Dropdown</span>
+                                            </button>
+                                            <ul class="dropdown-menu dropdown-menu-end" style="z-index: 1050;">
+                                                <li><h6 class="dropdown-header">电源控制 (IPMI)</h6></li>
+                                                <li><a class="dropdown-item text-success" href="#" onclick="confirmListPower('{% url 'assets:server_power_on' server.id %}', '开机', '{{ server.management_ip }}')"><i class="bi bi-power"></i> 开机</a></li>
+                                                <li><a class="dropdown-item text-warning" href="#" onclick="confirmListPower('{% url 'assets:server_power_reset' server.id %}', '重启', '{{ server.management_ip }}')"><i class="bi bi-arrow-repeat"></i> 重启</a></li>
+                                                <li><hr class="dropdown-divider"></li>
+                                                <li><a class="dropdown-item text-danger" href="#" onclick="confirmListPower('{% url 'assets:server_power_off' server.id %}', '关机', '{{ server.management_ip }}')"><i class="bi bi-stop-circle"></i> 关机</a></li>
+                                            </ul>
+                                            {% endif %}
+                                        </div>
                                     </td>
                                 </tr>
                                 {% empty %}
@@ -151,10 +160,23 @@
 <form id="deleteForm" method="post" style="display:none;">
     {% csrf_token %}
 </form>
+
+<!-- 列表页电源操作表单 -->
+<form id="listPowerForm" method="post" style="display:none;">
+    {% csrf_token %}
+</form>
 {% endblock %}
 
 {% block extra_js %}
 <script>
+function confirmListPower(url, action, ip) {
+    if (confirm('确定要对 ' + ip + ' 执行 [' + action + '] 操作吗？\n操作将直接发送至带外管理接口。')) {
+        var form = document.getElementById('listPowerForm');
+        form.action = url;
+        form.submit();
+    }
+}
+
 function deleteServer(serverId, serverSn) {
     if (confirm('确定要删除服务器 ' + serverSn + ' 吗？\n删除后数据将无法恢复！')) {
         var form = document.getElementById('deleteForm');

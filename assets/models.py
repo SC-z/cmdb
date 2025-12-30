@@ -111,6 +111,14 @@ class Server(models.Model):
     # SSH服务监听的端口,默认为22
     ssh_port = models.IntegerField('SSH端口', default=22)
 
+    # ==================== 带外管理信息字段 ====================
+
+    # 带外管理用户名
+    oob_username = models.CharField('带外用户名', max_length=50, blank=True)
+
+    # 带外管理密码 (Base64编码)
+    oob_password = models.CharField('带外密码', max_length=200, blank=True)
+
     # ==================== Agent部署信息字段 ====================
 
     # Agent部署状态标记
@@ -194,6 +202,20 @@ class Server(models.Model):
                 return base64.b64decode(self.ssh_password.encode()).decode()
             except Exception:
                 # 如果解码失败（如数据损坏）,返回空字符串
+                return ''
+        return ''
+
+    def set_oob_password(self, password):
+        """设置带外密码（Base64编码）"""
+        if password:
+            self.oob_password = base64.b64encode(password.encode()).decode()
+
+    def get_oob_password(self):
+        """获取带外密码（Base64解码）"""
+        if self.oob_password:
+            try:
+                return base64.b64decode(self.oob_password.encode()).decode()
+            except Exception:
                 return ''
         return ''
 

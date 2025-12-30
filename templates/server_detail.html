@@ -110,6 +110,66 @@
     </div>
 </div>
 
+<!-- 带外管理 -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-power"></i> 带外管理</h5>
+                <a href="{% url 'assets:server_edit_oob' server.id %}" class="btn btn-sm btn-light">
+                    <i class="bi bi-pencil"></i> 配置
+                </a>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <table class="table table-bordered mb-0">
+                            <tr>
+                                <th width="30%">BMC IP</th>
+                                <td>{{ server.bmc_ip|default:"未配置" }}</td>
+                            </tr>
+                            <tr>
+                                <th>带外用户</th>
+                                <td>{{ server.oob_username|default:"未配置" }}</td>
+                            </tr>
+                            <tr>
+                                <th>电源控制</th>
+                                <td>
+                                    {% if server.bmc_ip and server.oob_username %}
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <button type="button" class="btn btn-success" onclick="confirmPowerAction('{% url 'assets:server_power_on' server.id %}', '开机')">
+                                                <i class="bi bi-power"></i> 开机
+                                            </button>
+                                            <button type="button" class="btn btn-warning" onclick="confirmPowerAction('{% url 'assets:server_power_reset' server.id %}', '重启')">
+                                                <i class="bi bi-arrow-repeat"></i> 重启
+                                            </button>
+                                            <button type="button" class="btn btn-danger" onclick="confirmPowerAction('{% url 'assets:server_power_off' server.id %}', '关机')">
+                                                <i class="bi bi-stop-circle"></i> 关机
+                                            </button>
+                                        </div>
+                                    {% else %}
+                                        <span class="text-muted"><i class="bi bi-exclamation-circle"></i> 请先配置带外信息以启用电源控制</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                         <div class="alert alert-light border h-100">
+                             <div class="d-flex align-items-center h-100">
+                                 <small class="text-muted">
+                                     <i class="bi bi-info-circle"></i> 带外管理允许您在操作系统不可用时远程控制服务器电源。<br>
+                                     支持 IPMI 2.0 协议 (LANplus)。
+                                 </small>
+                             </div>
+                         </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- 硬件信息 -->
 {% if server.hardware %}
 <!-- CPU信息 -->
@@ -313,10 +373,23 @@
 <form id="deleteForm" method="post" action="{% url 'assets:delete_server' server.id %}" style="display:none;">
     {% csrf_token %}
 </form>
+
+<!-- 电源控制表单 -->
+<form id="powerForm" method="post" style="display:none;">
+    {% csrf_token %}
+</form>
 {% endblock %}
 
 {% block extra_js %}
 <script>
+function confirmPowerAction(url, actionName) {
+    if (confirm('确定要对服务器执行 [' + actionName + '] 操作吗？\n该操作将直接通过IPMI发送指令。')) {
+        var form = document.getElementById('powerForm');
+        form.action = url;
+        form.submit();
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     var deleteBtn = document.getElementById('btnDeleteServer');
     if (deleteBtn) {

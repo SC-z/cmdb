@@ -69,6 +69,35 @@ class AddServerForm(BootstrapFormMixin, forms.ModelForm):
         return port
 
 
+class ServerOOBForm(BootstrapFormMixin, forms.ModelForm):
+    """Form for editing server OOB (Out-of-Band) information."""
+    
+    credential = forms.ModelChoiceField(
+        label='选择凭据',
+        queryset=Credential.objects.all(),
+        required=False,
+        empty_label="-- 手动输入 --",
+        help_text="选择凭据将自动填充用户名和密码"
+    )
+    oob_password_input = forms.CharField(
+        label='带外密码',
+        required=False,
+        widget=forms.PasswordInput(render_value=True),
+        help_text='若选择凭据，此项将自动覆盖。若手动输入且留空，则不修改密码。'
+    )
+
+    class Meta:
+        model = Server
+        fields = ['bmc_ip', 'oob_username']
+
+    def clean(self):
+        cleaned_data = super().clean()
+        credential = cleaned_data.get('credential')
+        
+        # If credential is valid, it will be used in the view to set username/password
+        return cleaned_data
+
+
 class SystemSettingsForm(BootstrapFormMixin, forms.ModelForm):
     """Form for system settings."""
     

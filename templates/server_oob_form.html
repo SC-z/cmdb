@@ -1,0 +1,99 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }} - CMDB{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="page-title">
+            <i class="bi bi-gear"></i>
+            <span>{{ title }}</span>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12 col-lg-8 col-xl-6 mx-auto">
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-4">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {% for error in form.non_field_errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+
+                    <!-- BMC IP -->
+                    <div class="mb-3">
+                        <label for="{{ form.bmc_ip.id_for_label }}" class="form-label">
+                            {{ form.bmc_ip.label }}
+                        </label>
+                        {{ form.bmc_ip }}
+                        {% if form.bmc_ip.errors %}
+                            <div class="text-danger small">{{ form.bmc_ip.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                    <hr>
+
+                    <!-- Credential Selection -->
+                    <div class="mb-3">
+                        <label for="{{ form.credential.id_for_label }}" class="form-label">{{ form.credential.label }}</label>
+                        {{ form.credential }}
+                        <div class="form-text">{{ form.credential.help_text }}</div>
+                    </div>
+
+                    <!-- Manual Fields -->
+                    <div id="manual-credentials">
+                        <div class="mb-3">
+                            <label for="{{ form.oob_username.id_for_label }}" class="form-label">
+                                {{ form.oob_username.label }}
+                            </label>
+                            {{ form.oob_username }}
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.oob_password_input.id_for_label }}" class="form-label">
+                                {{ form.oob_password_input.label }}
+                            </label>
+                            {{ form.oob_password_input }}
+                            <div class="form-text">{{ form.oob_password_input.help_text }}</div>
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                        <a href="{% url 'assets:server_detail' server.id %}" class="btn btn-secondary">
+                            <i class="bi bi-x-circle"></i> 取消
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle"></i> 保存
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const credentialSelect = document.getElementById('{{ form.credential.id_for_label }}');
+        const manualCredentialsDiv = document.getElementById('manual-credentials');
+
+        function toggleManualCredentials() {
+            if (credentialSelect.value) {
+                manualCredentialsDiv.style.display = 'none';
+            } else {
+                manualCredentialsDiv.style.display = 'block';
+            }
+        }
+
+        toggleManualCredentials();
+        credentialSelect.addEventListener('change', toggleManualCredentials);
+    });
+</script>
+{% endblock %}
