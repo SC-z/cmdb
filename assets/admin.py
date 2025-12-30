@@ -1,15 +1,19 @@
 from django.contrib import admin
-from .models import (
-    Server,
-    HardwareInfo,
-    SystemConfig,
-    ExecutionTask,
-    ExecutionTaskTarget,
-    ExecutionRun,
-    ExecutionStage,
-    ExecutionJob,
-)
+from .models import Server, HardwareInfo, ExecutionTask, ExecutionTaskTarget, ExecutionRun, ExecutionStage, ExecutionJob, SystemConfig, Credential
 
+@admin.register(Credential)
+class CredentialAdmin(admin.ModelAdmin):
+    list_display = ('title', 'username', 'created_at')
+    search_fields = ('title', 'username')
+    readonly_fields = ('created_at', 'updated_at')
+
+    def save_model(self, request, obj, form, change):
+        # 如果密码被修改了（且不是加密后的字符串），则重新加密
+        # 注意：这里简单的判断可能不够严谨，但在Admin中通常是明文输入
+        # 更严谨的做法是使用自定义Form或检查hash
+        if 'password' in form.changed_data:
+            obj.set_password(obj.password)
+        super().save_model(request, obj, form, change)
 
 @admin.register(Server)
 class ServerAdmin(admin.ModelAdmin):

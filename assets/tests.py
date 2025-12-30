@@ -118,3 +118,61 @@ class AgentReportTests(TestCase):
         self.assertEqual(temp_server.sn, 'SN-800')
         self.assertEqual(temp_server.bmc_ip, '192.168.20.10')
         self.assertEqual(Server.objects.count(), 1)
+
+
+from .models import Credential
+
+class CredentialViewTests(TestCase):
+    def setUp(self):
+        self.cred = Credential.objects.create(
+            title='Test Credential',
+            username='root'
+        )
+        self.cred.set_password('testpass')
+        self.cred.save()
+
+    def test_credential_list_view(self):
+        url = reverse('assets:credential_list')
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Test Credential')
+
+    def test_credential_add_view(self):
+        url = reverse('assets:credential_add')
+        data = {
+            'title': 'New Cred',
+            'username': 'admin',
+            'input_password': 'newpassword'
+        }
+        response = self.client.post(url, data)
+        self.assertEqual(response.status_code, 302) # Redirects on success
+        self.assertEqual(Credential.objects.count(), 2)
+        new_cred = Credential.objects.get(title='New Cred')
+        self.assertEqual(new_cred.get_password(), 'newpassword')
+
+    def test_credential_edit_view(self):
+        url = reverse('assets:credential_edit', args=[self.cred.id])
+        # Update username but keep password (empty password field means keep existing)
+        data = {
+            'title': 'Updated Cred',
+            'username': 'root_updated',
+            'input_password': ''
+        }
+        response = self.client.post(url, data)
+        self.assertEqual(response.status_code, 302)
+        self.cred.refresh_from_db()
+        self.assertEqual(self.cred.title, 'Updated Cred')
+        self.assertEqual(self.cred.username, 'root_updated')
+        self.assertEqual(self.cred.get_password(), 'testpass') # Password unchanged
+
+        # Update password
+        data['input_password'] = 'changedpass'
+        self.client.post(url, data)
+        self.cred.refresh_from_db()
+        self.assertEqual(self.cred.get_password(), 'changedpass')
+
+    def test_credential_delete_view(self):
+        url = reverse('assets:credential_delete', args=[self.cred.id])
+        response = self.client.post(url)
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(Credential.objects.filter(id=self.cred.id).exists())

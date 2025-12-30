@@ -67,6 +67,12 @@ urlpatterns = [
     path('tasks/<int:task_id>/', views.task_detail_view, name='task_detail'),
     path('tasks/<int:task_id>/delete/', views.task_delete_view, name='task_delete'),
 
+    # ==================== 凭据管理路由 ====================
+    path('credentials/', views.credential_list_view, name='credential_list'),
+    path('credentials/add/', views.credential_add_view, name='credential_add'),
+    path('credentials/<int:pk>/edit/', views.credential_edit_view, name='credential_edit'),
+    path('credentials/<int:pk>/delete/', views.credential_delete_view, name='credential_delete'),
+
     # ==================== API接口路由 ====================
     # 这些路由用于提供RESTful API服务,供Agent和外部系统调用
 

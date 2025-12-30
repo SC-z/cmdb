@@ -1,7 +1,7 @@
 from django import forms
 from django.utils import timezone
 import ipaddress
-from .models import ExecutionTask, Server, SystemConfig
+from .models import ExecutionTask, Server, SystemConfig, Credential
 
 class BootstrapFormMixin:
     """Mixin to add Bootstrap classes to form fields."""
@@ -20,14 +20,36 @@ class BootstrapFormMixin:
 class AddServerForm(BootstrapFormMixin, forms.ModelForm):
     """Form for adding a new server."""
     
-    ssh_password = forms.CharField(label='SSH密码', widget=forms.PasswordInput)
+    credential = forms.ModelChoiceField(
+        label='选择凭据',
+        queryset=Credential.objects.all(),
+        required=False,
+        empty_label="-- 手动输入账号密码 --",
+        help_text="选择已保存的凭据，或手动输入下方账号密码"
+    )
+    ssh_username = forms.CharField(label='SSH用户名', required=False)
+    ssh_password = forms.CharField(label='SSH密码', widget=forms.PasswordInput, required=False)
 
     class Meta:
         model = Server
-        fields = ['management_ip', 'ssh_username', 'ssh_password', 'ssh_port']
+        fields = ['management_ip', 'ssh_port', 'credential', 'ssh_username', 'ssh_password']
         widgets = {
             'ssh_password': forms.PasswordInput(),
         }
+
+    def clean(self):
+        cleaned_data = super().clean()
+        credential = cleaned_data.get('credential')
+        ssh_username = cleaned_data.get('ssh_username')
+        ssh_password = cleaned_data.get('ssh_password')
+
+        if not credential:
+            if not ssh_username:
+                self.add_error('ssh_username', '若未选择凭据，请填写SSH用户名')
+            if not ssh_password:
+                self.add_error('ssh_password', '若未选择凭据，请填写SSH密码')
+        
+        return cleaned_data
 
     def clean_management_ip(self):
         ip = self.cleaned_data['management_ip']
@@ -57,6 +79,35 @@ class SystemSettingsForm(BootstrapFormMixin, forms.ModelForm):
             'allowed_networks': forms.Textarea(attrs={'rows': 6, 'class': 'font-monospace'}),
             'cron_expression': forms.TextInput(attrs={'class': 'font-monospace'}),
         }
+
+
+class CredentialForm(BootstrapFormMixin, forms.ModelForm):
+    """Form for managing credentials."""
+    
+    # Explicitly define password field so it's not bound to the model field automatically
+    # This prevents form.save() from overwriting the model's password with an empty string
+    input_password = forms.CharField(
+        label='密码',
+        required=False, 
+        widget=forms.PasswordInput(render_value=True),
+        help_text='若不修改密码请留空（仅在编辑时）。'
+    )
+
+    class Meta:
+        model = Credential
+        fields = ['title', 'username'] # Removed 'password'
+        widgets = {
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Edit mode logic
+        if self.instance and self.instance.pk:
+            self.fields['input_password'].required = False
+            self.fields['input_password'].widget.attrs['placeholder'] = '留空保持不变'
+        else:
+             self.fields['input_password'].required = True
+             self.fields['input_password'].help_text = '' # Clear help text for new records
 
 
 class ExecutionTaskForm(BootstrapFormMixin, forms.ModelForm):

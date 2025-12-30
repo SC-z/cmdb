@@ -43,24 +43,35 @@
                     <h5 class="mb-3">SSH连接信息</h5>
 
                     <div class="mb-3">
-                        <label for="{{ form.ssh_username.id_for_label }}" class="form-label">
-                            {{ form.ssh_username.label }} <span class="text-danger">*</span>
-                        </label>
-                        {{ form.ssh_username }}
-                        {% if form.ssh_username.errors %}
-                            <div class="text-danger small">{{ form.ssh_username.errors.0 }}</div>
+                        <label for="{{ form.credential.id_for_label }}" class="form-label">{{ form.credential.label }}</label>
+                        {{ form.credential }}
+                        <div class="form-text">{{ form.credential.help_text }}</div>
+                        {% if form.credential.errors %}
+                            <div class="text-danger small">{{ form.credential.errors.0 }}</div>
                         {% endif %}
                     </div>
 
-                    <div class="mb-3">
-                        <label for="{{ form.ssh_password.id_for_label }}" class="form-label">
-                            {{ form.ssh_password.label }} <span class="text-danger">*</span>
-                        </label>
-                        {{ form.ssh_password }}
-                        {% if form.ssh_password.errors %}
-                            <div class="text-danger small">{{ form.ssh_password.errors.0 }}</div>
-                        {% endif %}
-                        <div class="form-text">密码将使用Base64编码存储</div>
+                    <div id="manual-credentials">
+                        <div class="mb-3">
+                            <label for="{{ form.ssh_username.id_for_label }}" class="form-label">
+                                {{ form.ssh_username.label }} <span class="text-danger">*</span>
+                            </label>
+                            {{ form.ssh_username }}
+                            {% if form.ssh_username.errors %}
+                                <div class="text-danger small">{{ form.ssh_username.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.ssh_password.id_for_label }}" class="form-label">
+                                {{ form.ssh_password.label }} <span class="text-danger">*</span>
+                            </label>
+                            {{ form.ssh_password }}
+                            {% if form.ssh_password.errors %}
+                                <div class="text-danger small">{{ form.ssh_password.errors.0 }}</div>
+                            {% endif %}
+                            <div class="form-text">密码将使用Base64编码存储</div>
+                        </div>
                     </div>
 
                     <div class="mb-3">
@@ -98,4 +109,30 @@
         </div>
     </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const credentialSelect = document.getElementById('{{ form.credential.id_for_label }}');
+        const manualCredentialsDiv = document.getElementById('manual-credentials');
+        const sshUsernameInput = document.getElementById('{{ form.ssh_username.id_for_label }}');
+        const sshPasswordInput = document.getElementById('{{ form.ssh_password.id_for_label }}');
+
+        function toggleManualCredentials() {
+            if (credentialSelect.value) {
+                // If a credential is selected, hide manual inputs
+                manualCredentialsDiv.style.display = 'none';
+                // Optional: clear values or remove required attribute if any (though backend handles logic)
+            } else {
+                // If no credential selected, show manual inputs
+                manualCredentialsDiv.style.display = 'block';
+            }
+        }
+
+        // Initial check
+        toggleManualCredentials();
+
+        // Listen for changes
+        credentialSelect.addEventListener('change', toggleManualCredentials);
+    });
+</script>
 {% endblock %}

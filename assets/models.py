@@ -7,6 +7,42 @@ from django.utils import timezone
 User = get_user_model()
 
 
+class Credential(models.Model):
+    """
+    密码本/凭据模型
+
+    用于存储可复用的服务器登录凭据（用户名和密码）。
+    在添加服务器时，可以直接选择凭据而无需手动输入。
+    """
+    title = models.CharField('标题', max_length=100, unique=True, help_text='凭据的标识名称，如：Web服务器默认密码')
+    username = models.CharField('用户名', max_length=50)
+    password = models.CharField('密码', max_length=200, blank=True)
+    created_at = models.DateTimeField('创建时间', auto_now_add=True)
+    updated_at = models.DateTimeField('更新时间', auto_now=True)
+
+    class Meta:
+        verbose_name = '凭据'
+        verbose_name_plural = '凭据'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return self.title
+
+    def set_password(self, password):
+        """设置密码（Base64编码）"""
+        if password:
+            self.password = base64.b64encode(password.encode()).decode()
+
+    def get_password(self):
+        """获取密码（Base64解码）"""
+        if self.password:
+            try:
+                return base64.b64decode(self.password.encode()).decode()
+            except Exception:
+                return ''
+        return ''
+
+
 class Server(models.Model):
     """
     服务器模型

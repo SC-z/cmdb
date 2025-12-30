@@ -226,6 +226,10 @@
                         <i class="bi bi-terminal"></i>
                         <span>任务列表</span>
                     </a>
+                    <a href="{% url 'assets:credential_list' %}" class="nav-link {% if 'credential' in request.resolver_match.url_name %}active{% endif %}">
+                        <i class="bi bi-key"></i>
+                        <span>凭据管理</span>
+                    </a>
                     <a href="{% url 'assets:system_settings' %}" class="nav-link {% if request.resolver_match.url_name == 'system_settings' %}active{% endif %}">
                         <i class="bi bi-sliders"></i>
                         <span>系统设置</span>

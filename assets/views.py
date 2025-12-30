@@ -5,7 +5,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 
-from .forms import ExecutionTaskForm, AddServerForm, SystemSettingsForm
+from .forms import ExecutionTaskForm, AddServerForm, SystemSettingsForm, CredentialForm
 from .execution import (
     calculate_next_run,
     create_run_for_task,
@@ -20,6 +20,7 @@ from .models import (
     HardwareInfo,
     Server,
     SystemConfig,
+    Credential,
 )
 from .utils import deploy_agent_to_server, test_ssh_connection, update_server_cron
 
@@ -108,10 +109,11 @@ def add_server_view(request):
 
     处理新服务器的添加流程,包括：
     1. 表单数据验证
-    2. IP地址格式检查
-    3. SSH连接测试
-    4. 服务器记录创建
-    5. Agent自动部署
+    2. 凭据处理（支持选择凭据或手动输入）
+    3. IP地址格式检查
+    4. SSH连接测试
+    5. 服务器记录创建
+    6. Agent自动部署
 
     这是一个完整的表单处理流程,展示了Django视图的最佳实践。
 
@@ -125,9 +127,16 @@ def add_server_view(request):
         form = AddServerForm(request.POST)
         if form.is_valid():
             management_ip = form.cleaned_data['management_ip']
-            ssh_username = form.cleaned_data['ssh_username']
-            ssh_password = form.cleaned_data['ssh_password']
             ssh_port = form.cleaned_data['ssh_port']
+            
+            # 处理凭据逻辑
+            credential = form.cleaned_data.get('credential')
+            if credential:
+                ssh_username = credential.username
+                ssh_password = credential.get_password()
+            else:
+                ssh_username = form.cleaned_data.get('ssh_username')
+                ssh_password = form.cleaned_data.get('ssh_password')
             
             # SSH连接测试
             messages.info(request, f'正在测试SSH连接到 {management_ip}:{ssh_port}...')
@@ -552,3 +561,63 @@ def task_delete_view(request, task_id):
 
     messages.error(request, '仅允许通过 POST 请求删除任务。')
     return redirect('assets:task_detail', task_id=task.id)
+
+
+def credential_list_view(request):
+    """凭据列表视图"""
+    credentials = Credential.objects.all()
+    context = {'credentials': credentials}
+    return render(request, 'credential_list.html', context)
+
+
+def credential_add_view(request):
+    """添加凭据视图"""
+    if request.method == 'POST':
+        form = CredentialForm(request.POST)
+        if form.is_valid():
+            credential = form.save(commit=False)
+            credential.set_password(form.cleaned_data['input_password'])
+            credential.save()
+            messages.success(request, '凭据已创建。')
+            return redirect('assets:credential_list')
+    else:
+        form = CredentialForm()
+    
+    context = {'form': form, 'title': '添加凭据'}
+    return render(request, 'credential_form.html', context)
+
+
+def credential_edit_view(request, pk):
+    """编辑凭据视图"""
+    credential = get_object_or_404(Credential, pk=pk)
+    
+    if request.method == 'POST':
+        form = CredentialForm(request.POST, instance=credential)
+        if form.is_valid():
+            cred = form.save(commit=False)
+            password = form.cleaned_data.get('input_password')
+            if password:
+                cred.set_password(password)
+            cred.save()
+            messages.success(request, '凭据已更新。')
+            return redirect('assets:credential_list')
+    else:
+        form = CredentialForm(instance=credential)
+    
+    context = {'form': form, 'title': '编辑凭据', 'credential': credential}
+    return render(request, 'credential_form.html', context)
+
+
+def credential_delete_view(request, pk):
+    """删除凭据视图"""
+    credential = get_object_or_404(Credential, pk=pk)
+    
+    if request.method == 'POST':
+        title = credential.title
+        credential.delete()
+        messages.success(request, f'凭据 "{title}" 已删除。')
+        return redirect('assets:credential_list')
+    
+    # 简单的确认页面或者直接通过POST删除，这里我们复用一个简单的确认模板
+    context = {'object': credential, 'cancel_url': 'assets:credential_list'}
+    return render(request, 'confirm_delete.html', context)
